@@ -1,6 +1,6 @@
 # Lightspin EKS Creation Engine
 
-[![Known Vulnerabilities](https://snyk.io/test/github/jonrau-lightspin/eks-creation-engine/badge.svg)]
+![Known Vulnerabilities](https://snyk.io/test/github/jonrau-lightspin/eks-creation-engine/badge.svg)
 
 The Amazon Elastic Kubernetes Service (EKS) Creation Engine (ECE) is a Python command-line program created by the Lightspin Office of the CISO to facilitate the creation and enablement of secure EKS Clusters, optionally further assured with continual Kubernetes Security Posture Management (KSPM), Runtime Protection, and Application Performance Monitoring (APM) capabilities.
 
