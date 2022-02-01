@@ -13,7 +13,7 @@ At a high-level ECE...
 - Supports the full lifecycle of EKS management: Creation, Deletion, Rollbacks, and Updates
 - Bootstraps Nodegroups based on IMDSv2 and Custom AMIs (**Currently supports Amazon Linux 2 & Ubuntu 20.04LTS Arm64 & Amd64**)
 - Will install and configure [Microsoft Defender for Endpoint](https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/microsoft-defender-endpoint?view=o365-worldwide) (MDE), Sysdig's [Falco](https://github.com/falcosecurity/falco) & [FalcoSidekick](https://github.com/falcosecurity/falcosidekick), and/or [Datadog](https://docs.datadoghq.com/agent/kubernetes/?tab=helm) if desired.
-- Perform KSPM tasks using Aqua Security's [Trivy](https://github.com/aquasecurity/trivy) (vulnerability management) and [Kube-bench](https://github.com/aquasecurity/kube-bench) (EKS CIS Benchmarking) into a [SARIF](https://sarifweb.azurewebsites.net/) JSON Report
+- Perform Kubernetes Security Posture Management (KSPM) tasks using Aqua Security's [Trivy](https://github.com/aquasecurity/trivy) (vulnerability management) and [Kube-bench](https://github.com/aquasecurity/kube-bench) (EKS CIS Benchmarking) into a [SARIF](https://sarifweb.azurewebsites.net/) JSON Report
 
 ## Why use this over IAC :raised_eyebrow: :raised_eyebrow: ??
 
@@ -54,9 +54,11 @@ For those using Infrastructure-as-Code (IAC) such as AWS CloudFormation and Hash
 
 We are happy to take contributions from anywhere that will help expand this project. Some things that immediately come to mind...
 
-- Saving configurations to YAML and read from them.
-- Support installing more software onto EKS Nodes such as CloudWatch Agent, Kinesis Data Agent, DataDog Agent, Suricata, etc.
+- Saving configurations to YAML/JSON and read from them.
+- Support installing more software onto EKS Nodes (e.g., CloudWatch Agent, Kinesis Data Agent, Wazuh, etc.)
 - Functionality for adding Nodegroups to existing Clusters.
+- Spot provider & Fargate Profile support for Nodegroups, and an option to not use Nodegroups
+- Create more Plugins for various utilities (e.g., Calico, OPA, NGINX Ingress Controller, etc.)
 
 ## Contact Us :telephone_receiver: :telephone_receiver:
 
