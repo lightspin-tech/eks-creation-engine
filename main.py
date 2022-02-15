@@ -135,7 +135,9 @@ def create_preflight_check():
         falco_sidekick_destination_type=falcoDestType,
         falco_sidekick_destination=falcoDest,
         ami_os=amiOs,
-        ami_architecture=amiArchitecture
+        ami_architecture=amiArchitecture,
+        datadog_api_key=datadogApiKey,
+        datadog_bool=datadogBool
     )
 
     stay_dangerous()
