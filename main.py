@@ -308,6 +308,7 @@ if __name__ == "__main__":
     # Feed all of the arguments 
     '''
     >> argparse argument | **kwargs <<
+    --profile | profile
     --mode | mode
     --k8s_version | kubernetes_version
     --s3_bucket_name | bucket_name
@@ -333,6 +334,14 @@ if __name__ == "__main__":
     --datadog_api_key | datadog_api_key
     '''
     parser = argparse.ArgumentParser()
+
+    # --profile
+    parser.add_argument(
+        '--profile',
+        help='Specify Profile name if multiple profiles are used',
+        required=False,
+        default=[]
+    )
     # --mode
     parser.add_argument(
         '--mode',
@@ -505,6 +514,10 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    # Set Boto3 Profile if set
+    if args.profile:
+        boto3.setup_default_session(profile_name=args.profile)
+
     # Parse all arguments to be passed to various functions
     mode = args.mode
     k8sVersion = args.k8s_version
