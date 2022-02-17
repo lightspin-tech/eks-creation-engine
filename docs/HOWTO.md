@@ -34,9 +34,9 @@ helm version
 
 ### List all arguments
 
-```bash
+```
 python3 main.py -h
-usage: main.py [-h]
+usage: main.py [-h] [--profile PROFILE]
                [--mode {Create,Destroy,Update,Assessment,SetupFalco,RemoveFalco,SetupDatadog,RemoveDatadog}]
                [--k8s_version K8S_VERSION] [--s3_bucket_name S3_BUCKET_NAME]
                [--ebs_volume_size EBS_VOLUME_SIZE] [--ami_id AMI_ID]
@@ -53,9 +53,11 @@ usage: main.py [-h]
                [--falco_sidekick_destination FALCO_SIDEKICK_DESTINATION]
                [--ami_os {alas,ubuntu}] [--ami_architecture {amd64,arm64}]
                [--datadog {True,False}] [--datadog_api_key DATADOG_API_KEY]
+               [--addtl_auth_principals ADDTL_AUTH_PRINCIPALS [ADDTL_AUTH_PRINCIPALS ...]]
 
 optional arguments:
   -h, --help            show this help message and exit
+  --profile PROFILE     Specify Profile name if multiple profiles are used
   --mode {Create,Destroy,Update,Assessment,SetupFalco,RemoveFalco,SetupDatadog,RemoveDatadog}
                         Create, Destory or Update an existing Cluster. Updates
                         limited to K8s Version bump. Destroy attempts to
@@ -140,12 +142,24 @@ optional arguments:
                         Datadog API Key. This is used for setting up Datadog
                         with Create and SetupDatadog Modes as well as Datadog
                         integration for FalcoSidekick
+  --addtl_auth_principals ADDTL_AUTH_PRINCIPALS [ADDTL_AUTH_PRINCIPALS ...]
+                        Additional IAM Principal ARNs to authorized as
+                        system:masters
 ```
 
 ### Creating a Cluster with the minimum required arguements
 
 ```bash
 python3 main.py \
+    --subnets subnet-123 subnet-456 \
+    --vpcid vpc-123
+```
+
+### Creating a Cluster with the minimum required arguements, using another AWS CLI Profile
+
+```bash
+python3 main.py \
+    --profile dev \
     --subnets subnet-123 subnet-456 \
     --vpcid vpc-123
 ```
@@ -167,6 +181,19 @@ python3 main.py \
     --subnets subnet-123 subnet-456 \
     --vpcid vpc-123 \
     --additional_ports 80 1541 8001
+```
+
+### Adding additional IAM Principals into your Cluster
+
+```bash
+sudo apt install -y jq
+AWS_ACCOUNT=$(aws sts get-caller-identity | jq -r '.Account')
+ROLE_NAME_ONE='<some_role_name>'
+ROLE_NAME_TWO='<some_role_name>'
+python3 main.py \
+    --subnets subnet-123 subnet-456 \
+    --vpcid vpc-123
+    --addtl_auth_principals arn:aws:iam::$AWS_ACCOUNT:role/$ROLE_NAME_ONE arn:aws:iam::$AWS_ACCOUNT:role/$ROLE_NAME_TWO
 ```
 
 ### Creating a Cluster with Falco pre-installed
