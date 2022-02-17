@@ -519,7 +519,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--addtl_auth_principals',
         nargs='+',
-        help='Additional IAM Principal ARNs to authorized as system:masters',
+        help='Additional IAM Role ARNs to authorized as system:masters',
         required=False
     )
 

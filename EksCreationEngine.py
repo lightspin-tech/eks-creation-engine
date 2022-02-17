@@ -1288,8 +1288,10 @@ class ClusterManager():
         # If additional principals are required to be authorized, attempt to do so
         if addtl_auth_principals:
             for arn in addtl_auth_principals:
+                # Split out the name part of the Role
+                addtlRoleName = str(arn.split('/')[1])
                 # Create a patch object to add into
-                newAuthZScript=f'''ROLE="    - rolearn: {arn}\\n      username: emr-containers\\n      groups:\\n        - system:masters"
+                newAuthZScript=f'''ROLE="    - rolearn: {arn}\\n      username: {addtlRoleName}\\n      groups:\\n        - system:masters"
                 kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{{print;print \\"$ROLE\\";next}}1" > /tmp/aws-auth-patch.yml
                 kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
                 '''
