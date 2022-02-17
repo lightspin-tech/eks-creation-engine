@@ -12,8 +12,11 @@ At a high-level ECE...
 
 - Supports the full lifecycle of EKS management: Creation, Deletion, Rollbacks, and Updates
 - Bootstraps Nodegroups based on IMDSv2 and Custom AMIs (**Currently supports Amazon Linux 2 & Ubuntu 20.04LTS Arm64 & Amd64**)
+- Authorize additional IAM Principals into your Cluster
 - Will install and configure [Microsoft Defender for Endpoint](https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/microsoft-defender-endpoint?view=o365-worldwide) (MDE), Sysdig's [Falco](https://github.com/falcosecurity/falco) & [FalcoSidekick](https://github.com/falcosecurity/falcosidekick), and/or [Datadog](https://docs.datadoghq.com/agent/kubernetes/?tab=helm) if desired.
 - Perform Kubernetes Security Posture Management (KSPM) tasks using Aqua Security's [Trivy](https://github.com/aquasecurity/trivy) (vulnerability management) and [Kube-bench](https://github.com/aquasecurity/kube-bench) (EKS CIS Benchmarking) into a [SARIF](https://sarifweb.azurewebsites.net/) JSON Report
+
+After creating a Cluster with ECE, you are free to use your own tools such as `eksctl` or Terraform to further extend!
 
 ## Why use this over IAC :raised_eyebrow: :raised_eyebrow: ??
 
@@ -32,7 +35,7 @@ For those using the Console, APIs, CLI, or SDKs to create your Cluster - AWS doe
 | Secrets Envelope Encryption | :x: | :white_check_mark: |
 | Node Volume Encryption | :x: | :white_check_mark: |
 | Minimum Necessary Secuirty Group Permissions | :x: | :white_check_mark: |
-| Minimum Necessary IAM Role Permissions | :question: | :white_check_mark: |
+| Minimum Necessary IAM Role Permissions | :x: | :white_check_mark: |
 | KMS Key Generation | :x: | :white_check_mark: |
 | IMDSv2 on Nodes | :x: | :white_check_mark: |
 | [EDR](https://docs.microsoft.com/en-us/microsoft-365/security/defender-endpoint/microsoft-defender-endpoint?view=o365-worldwide) on Nodes | :x: | :white_check_mark: |

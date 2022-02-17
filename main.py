@@ -137,7 +137,8 @@ def create_preflight_check():
         ami_os=amiOs,
         ami_architecture=amiArchitecture,
         datadog_api_key=datadogApiKey,
-        datadog_bool=datadogBool
+        datadog_bool=datadogBool,
+        addtl_auth_principals=additionalAuthZPrincipals
     )
 
     stay_dangerous()
@@ -332,6 +333,7 @@ if __name__ == "__main__":
     --ami_architecture | ami_architecture
     --datadog | datadog_bool
     --datadog_api_key | datadog_api_key
+    --addtl_auth_principals | addtl_auth_principals
     '''
     parser = argparse.ArgumentParser()
 
@@ -512,6 +514,14 @@ if __name__ == "__main__":
         required=False,
         default=None
     )
+    # addtl_auth_principals
+    # for help https://www.kite.com/python/answers/how-to-pass-a-list-as-an-argument-using-argparse-in-python
+    parser.add_argument(
+        '--addtl_auth_principals',
+        nargs='+',
+        help='Additional IAM Principal ARNs to authorized as system:masters',
+        required=False
+    )
 
     args = parser.parse_args()
     # Set Boto3 Profile if set
@@ -541,6 +551,7 @@ if __name__ == "__main__":
     amiArchitecture = args.ami_architecture
     datadogBool = args.datadog
     datadogApiKey = args.datadog_api_key
+    additionalAuthZPrincipals = args.addtl_auth_principals
 
     # This calls the creation function to create all needed IAM policies, roles and EC2/EKS infrastructure
     # will check if some infrastructure exists first to avoid needless exit later
