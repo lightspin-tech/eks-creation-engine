@@ -137,7 +137,8 @@ def create_preflight_check():
         ami_os=amiOs,
         ami_architecture=amiArchitecture,
         datadog_api_key=datadogApiKey,
-        datadog_bool=datadogBool
+        datadog_bool=datadogBool,
+        addtl_auth_principals=additionalAuthZPrincipals
     )
 
     stay_dangerous()
@@ -308,6 +309,7 @@ if __name__ == "__main__":
     # Feed all of the arguments 
     '''
     >> argparse argument | **kwargs <<
+    --profile | profile
     --mode | mode
     --k8s_version | kubernetes_version
     --s3_bucket_name | bucket_name
@@ -331,8 +333,17 @@ if __name__ == "__main__":
     --ami_architecture | ami_architecture
     --datadog | datadog_bool
     --datadog_api_key | datadog_api_key
+    --addtl_auth_principals | addtl_auth_principals
     '''
     parser = argparse.ArgumentParser()
+
+    # --profile
+    parser.add_argument(
+        '--profile',
+        help='Specify Profile name if multiple profiles are used',
+        required=False,
+        default=[]
+    )
     # --mode
     parser.add_argument(
         '--mode',
@@ -503,8 +514,20 @@ if __name__ == "__main__":
         required=False,
         default=None
     )
+    # addtl_auth_principals
+    # for help https://www.kite.com/python/answers/how-to-pass-a-list-as-an-argument-using-argparse-in-python
+    parser.add_argument(
+        '--addtl_auth_principals',
+        nargs='+',
+        help='Additional IAM Role ARNs to authorized as system:masters',
+        required=False
+    )
 
     args = parser.parse_args()
+    # Set Boto3 Profile if set
+    if args.profile:
+        boto3.setup_default_session(profile_name=args.profile)
+
     # Parse all arguments to be passed to various functions
     mode = args.mode
     k8sVersion = args.k8s_version
@@ -528,6 +551,7 @@ if __name__ == "__main__":
     amiArchitecture = args.ami_architecture
     datadogBool = args.datadog
     datadogApiKey = args.datadog_api_key
+    additionalAuthZPrincipals = args.addtl_auth_principals
 
     # This calls the creation function to create all needed IAM policies, roles and EC2/EKS infrastructure
     # will check if some infrastructure exists first to avoid needless exit later

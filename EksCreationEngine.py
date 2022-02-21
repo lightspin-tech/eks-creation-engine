@@ -261,10 +261,12 @@ class ClusterManager():
         createdAt = str(datetime.utcnow())
 
         # Static list of required AWS Managed Policies for EKS Managed Nodegroup Roles
+        # Adding SSM for SSM access as SSH Keypairs are not specified
         nodegroupAwsManagedPolicies = [
             'arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy',
             'arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly',
-            'arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy'
+            'arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy',
+            'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
         ]
 
         # Grab S3 Node Group policy from other Function & add to List if MDE is enabled
@@ -433,6 +435,12 @@ class ClusterManager():
                             {
                                 'Key': 'CreatedWith',
                                 'Value': 'Lightspin ECE'
+                            },
+                            # This tag is required per AWS Docs
+                            # One, and only one, of the security groups associated to your nodes should have the following tag applied: For more information about tagging, see Working with tags using the console. kubernetes.io/cluster/cluster-name: owned
+                            {
+                                'Key': f'kubernetes.io/cluster/{cluster_name}',
+                                'Value': 'owned'
                             }
                         ]
                     }
@@ -775,7 +783,8 @@ class ClusterManager():
                 },
                 logging={
                     'clusterLogging': [
-                        {
+                        {   
+                            # all Logging types are enabled here
                             'types': ['api','audit','authenticator','controllerManager','scheduler'],
                             'enabled': True
                         }
@@ -879,7 +888,7 @@ class ClusterManager():
                 mdatp threat policy set --type potentially_unwanted_application --action block
                 mdatp config network-protection enforcement-level --value block
                 mdatp config real-time-protection --value enabled
-                TOKEN=`curl -X PUT 'http://169.254.169.254/latest/api/token' -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600'`
+                TOKEN=$(curl -X PUT 'http://169.254.169.254/latest/api/token' -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600')
                 INSTANCE_ID=$(curl -H 'X-aws-ec2-metadata-token: $TOKEN' -v http://169.254.169.254/latest/meta-data/instance-id)
                 mdatp edr tag set --name GROUP --value $INSTANCE_ID
                 '''
@@ -900,7 +909,7 @@ class ClusterManager():
                 mdatp threat policy set --type potentially_unwanted_application --action block
                 mdatp config network-protection enforcement-level --value block
                 mdatp config real-time-protection --value enabled
-                TOKEN=`curl -X PUT 'http://169.254.169.254/latest/api/token' -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600'`
+                TOKEN=$(curl -X PUT 'http://169.254.169.254/latest/api/token' -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600')
                 INSTANCE_ID=$(curl -H 'X-aws-ec2-metadata-token: $TOKEN' -v http://169.254.169.254/latest/meta-data/instance-id)
                 mdatp edr tag set --name GROUP --value $INSTANCE_ID
                 '''
@@ -1042,7 +1051,7 @@ class ClusterManager():
 
         return launchTemplateId
     
-    def builder(kubernetes_version, bucket_name, ebs_volume_size, ami_id, instance_type, cluster_name, cluster_role_name, nodegroup_name, nodegroup_role_name, launch_template_name, vpc_id, subnet_ids, node_count, mde_on_nodes, additional_ports, falco_bool, falco_sidekick_destination_type, falco_sidekick_destination, ami_os, ami_architecture, datadog_api_key, datadog_bool):
+    def builder(kubernetes_version, bucket_name, ebs_volume_size, ami_id, instance_type, cluster_name, cluster_role_name, nodegroup_name, nodegroup_role_name, launch_template_name, vpc_id, subnet_ids, node_count, mde_on_nodes, additional_ports, falco_bool, falco_sidekick_destination_type, falco_sidekick_destination, ami_os, ami_architecture, datadog_api_key, datadog_bool, addtl_auth_principals):
         '''
         This function is the 'brain' that controls creation and calls the required functions to build infrastructure and services (EKS, EC2, IAM).
         This function also stores all required arguments into cache to facilitate rollbacks upon errors
@@ -1219,6 +1228,8 @@ class ClusterManager():
         # Passes various arguements to the `create_launch_template` which returns a Launch Template ID (of the latest version) to pass to the Nodegroup creation payload
         launchTemplateId = ClusterManager.create_launch_template(cluster_name, kubernetes_version, ami_id, bucket_name, launch_template_name, kms_key_arn, securityGroupId, ebs_volume_size, instance_type, mde_on_nodes, ami_os, ami_architecture)
 
+        print(f'Creating Nodegroup {nodegroup_name} for Cluster {clusterName}')
+
         # Create and launch the Nodegroup
         try:
             eks.create_nodegroup(
@@ -1263,23 +1274,37 @@ class ClusterManager():
             print(f'Error encountered: {we}')
             RollbackManager.rollback_from_cache(cache=cache)
 
-        print(f'Creation complete. Nodegroup {nodegroup_name} in Cluster {cluster_name} is online')
+        print(f'Creation complete. Nodegroup {nodegroup_name} in Cluster {clusterName} is online')
 
         # Retrieve region for AWS CLI kubectl generation
         session = boto3.session.Session()
         awsRegion = session.region_name
 
         # Setup first time cluster connection with AWS CLI
-        updateKubeconfigCmd = f'aws eks update-kubeconfig --region {awsRegion} --name {cluster_name}'
+        updateKubeconfigCmd = f'aws eks update-kubeconfig --region {awsRegion} --name {clusterName}'
         updateKubeconfigProc = subprocess.run(updateKubeconfigCmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         print(updateKubeconfigProc.stdout.decode('utf-8'))
+
+        # If additional principals are required to be authorized, attempt to do so
+        if addtl_auth_principals:
+            for arn in addtl_auth_principals:
+                # Split out the name part of the Role
+                addtlRoleName = str(arn.split('/')[1])
+                # Create a patch object to add into
+                newAuthZScript=f'''ROLE="    - rolearn: {arn}\\n      username: {addtlRoleName}\\n      groups:\\n        - system:masters"
+                kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{{print;print \\"$ROLE\\";next}}1" > /tmp/aws-auth-patch.yml
+                kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
+                '''
+
+                newAuthZScriptProc = subprocess.run(newAuthZScript, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                print(newAuthZScriptProc.stdout.decode('utf-8'))
 
         '''
         Send a call into plugins.ECEFalco
         '''
         if falco_bool == 'True':
             FalcoSetup.falco_initialization(
-                cluster_name=cluster_name, 
+                cluster_name=clusterName, 
                 falco_mode='Create',
                 falco_sidekick_destination_type=falco_sidekick_destination_type, 
                 falco_sidekick_destination=falco_sidekick_destination,
@@ -1290,7 +1315,7 @@ class ClusterManager():
         '''
         if datadog_bool == 'True':
             DatadogSetup.initialization(
-                cluster_name=cluster_name, 
+                cluster_name=clusterName, 
                 datadog_mode='Create',
                 datadog_api_key=datadog_api_key
             )
