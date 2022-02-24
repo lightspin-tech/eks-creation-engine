@@ -16,8 +16,10 @@
 - [Creating a Cluster with Falco - custom destination](#creating-a-cluster-with-falco-pre-installed-that-sends-alerts-to-slack)
 - [Creating a cluster with Microsoft Defender for Endpoint](#creating-a-cluster-with-microsoft-defender-for-endpoint-mde-installed-on-eks-nodes)
 - [Deleting a Cluster](#destroying-a-cluster-created-by-eks-creation-engine-ece)
-- [Updating K8s Version](#update-the-kubernetes-version-of-a-cluster-created-by-eks-creation-engine-ece)
+- [Updating K8s Version](#update-the-kubernetes-version-of-an-eks-cluster)
 - [Conduct a Security Assessment against EKS](#conduct-a-security-assessment-against-an-eks-cluster)
+- [Install Falco on existing Clusters](#install-and-configure-falco-on-an-existing-cluster)
+- [Install Datadog on existing Clusters](#install-and-configure-datadog-on-an-existing-cluster)
 
 ### Install dependencies
 
@@ -275,9 +277,9 @@ python3 main.py \
     --launch_template_name $LAUNCH_TEMPLATE_NAME
 ```
 
-### Update the Kubernetes version of am EKS cluster
+### Update the Kubernetes version of an EKS cluster
 
-**Note:** You can install Falco on ***any*** EKS Cluster, created by ECE or ohterwise, using the `kubectl config use-context <CONTEXT-NAME>` command
+**Note:** You can install Falco on ***any*** EKS Cluster, created by ECE or otherwise, using the `kubectl config use-context <CONTEXT-NAME>` command
 
 ```bash
 python3 main.py \
@@ -289,7 +291,7 @@ python3 main.py \
 
 ### Conduct a security assessment against an EKS cluster
 
-**Note:** You can run the Security Assessment against ***any*** EKS Cluster, created by ECE or ohterwise, using the `kubectl config use-context <CONTEXT-NAME>` command
+**Note:** You can run the Security Assessment against ***any*** EKS Cluster, created by ECE or otherwise, using the `kubectl config use-context <CONTEXT-NAME>` command
 
 ```bash
 python3 main.py \
@@ -299,7 +301,7 @@ python3 main.py \
 
 ### Install and configure Falco on an existing cluster
 
-**Note:** You can install Falco on ***any*** EKS Cluster, created by ECE or ohterwise, using the `kubectl config use-context <CONTEXT-NAME>` command
+**Note:** You can install Falco on ***any*** EKS Cluster, created by ECE or otherwise, using the `kubectl config use-context <CONTEXT-NAME>` command
 
 ```bash
 SLACK_WEBHOOK="https://hooks.slack.com/services/XXXX"
@@ -312,7 +314,7 @@ python3 main.py \
 
 ### Install and configure Datadog on an existing cluster
 
-**Note:** You can install Datadog on ***any*** EKS Cluster, created by ECE or ohterwise, using the `kubectl config use-context <CONTEXT-NAME>` command
+**Note:** You can install Datadog on ***any*** EKS Cluster, created by ECE or otherwise, using the `kubectl config use-context <CONTEXT-NAME>` command
 
 - Create (or locate) your Datadog API Key and place it in a secure location such as AWS Systems Manager (SSM) Parameter Store or Hashicorp Vault (*example shown for AWS SSM*)
 

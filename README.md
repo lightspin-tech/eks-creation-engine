@@ -16,6 +16,14 @@ At a high-level ECE...
 
 After creating a Cluster with ECE, you are free to use your own tools such as `eksctl` or Terraform to further extend!
 
+It is very easy to get started, just provide a VPC ID and *two* matching private Subnet IDs
+
+```bash
+python3 main.py \
+    --subnets subnet-123 subnet-456 \
+    --vpcid vpc-123
+```
+
 ## Why use this over IAC :raised_eyebrow: :raised_eyebrow: ??
 
 tl;dr = ECE will create a secure cluster the first time, every time, and support the security of your clusters throughout their lifetime better than AWS' own defaults.
@@ -71,4 +79,4 @@ For more information, contact us at support@lightspin.io.
 
 ## License :eight_spoked_asterisk: :eight_spoked_asterisk:
 
-This repository is available under the [Apache License 2.0](https://github.com/lightspin-tech/red-kube/blob/main/LICENSE).
+This repository is available under the [Apache License 2.0](https://github.com/lightspin-tech/eks-creation-engine/blob/main/LICENSE).
