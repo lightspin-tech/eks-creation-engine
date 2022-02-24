@@ -61,7 +61,7 @@ For those using Infrastructure-as-Code (IAC) such as AWS CloudFormation and Hash
 
 ## FAQ :relieved: :relieved: ??
 
-[Read the FAQ here](./docs/HOWTO.md)
+[Read the FAQ here](./docs/FAQ.md)
 
 ## How can I contribute :arrow_upper_right: :arrow_upper_right: ??
 
