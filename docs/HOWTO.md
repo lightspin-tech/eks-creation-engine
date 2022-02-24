@@ -1,5 +1,9 @@
 # Lightspin EKS Creation Engine - How to Use
 
+### Table of Contents
+
+- [Installing Dependencies](#install-dependencies)
+
 ### Install dependencies
 
 ```bash
