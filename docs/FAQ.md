@@ -97,3 +97,11 @@ Yes. Upon creation of your Cluster, the AWS CLI command `aws eks update-kubeconf
 ### 6 - Will using ECE send any data to Lightspin?
 
 No! ECE is available freely under Apache-2.0 and will not "phone home" or send any data back to us.
+
+## Contact Us :telephone_receiver: :telephone_receiver:
+
+For more information, contact us at support@lightspin.io.
+
+## License :eight_spoked_asterisk: :eight_spoked_asterisk:
+
+This repository is available under the [Apache License 2.0](https://github.com/lightspin-tech/eks-creation-engine/blob/main/LICENSE).

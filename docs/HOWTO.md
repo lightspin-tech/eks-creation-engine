@@ -5,7 +5,7 @@
 - [Installing Dependencies](#install-dependencies)
 - [IAM Permissions](#ensure-you-have-the-necessary-iam-permissions)
 - [Install Kubectl](#install-kubectl-example-shown-for-ubuntu-refer-here-for-other-os)
-- [Install Helm](#install-helm-example-shown-for-ubuntu-refer-herehttpshelmshdocsintroinstall-for-other-os)
+- [Install Helm](#install-helm-example-shown-for-ubuntu-refer-here-for-other-os)
 - [Available Arguments](#list-all-arguments)
 - [Creating a Cluster - Basic](#creating-a-cluster-with-the-minimum-required-arguements)
 - [Creating a Cluster - Use AWS CLI Profile](#creating-a-cluster-with-the-minimum-required-arguements-using-another-aws-cli-profile)
@@ -24,6 +24,8 @@
 ### Install dependencies
 
 ```bash
+git clone https://github.com/lightspin-tech/eks-creation-engine.git
+cd eks-creation-engine
 pip3 install -r requirements.txt
 ```
 
@@ -338,3 +340,11 @@ python3 main.py \
     --datadog_api_key $DATADOG_API_KEY \
     --cluster_name $CLUSTER_NAME
 ```
+
+## Contact Us :telephone_receiver: :telephone_receiver:
+
+For more information, contact us at support@lightspin.io.
+
+## License :eight_spoked_asterisk: :eight_spoked_asterisk:
+
+This repository is available under the [Apache License 2.0](https://github.com/lightspin-tech/eks-creation-engine/blob/main/LICENSE).
