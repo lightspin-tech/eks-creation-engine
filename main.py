@@ -18,6 +18,7 @@
 #specific language governing permissions and limitations
 #under the License.
 
+import json
 import sys
 import re
 import boto3
@@ -113,6 +114,43 @@ def create_preflight_check():
         if datadogApiKey == None:
             print(f'Datadog setup was specified but a Datadog API was not provided. Please provide a valid API key and try again.')
             sys.exit(2)
+
+    # Print out creation specification - in the future this will be a "state file" for the cluster
+    specDict = {
+        'K8sVersion': k8sVersion,
+        'S3BucketName': bucketName,
+        'EBSVolumeSize': ebsVolumeSize,
+        'AmiId': amiId,
+        'InstanceType': instanceType,
+        'ClusterName': clusterName,
+        'ClusterRoleName': clusterRoleName,
+        'NodegroupName': nodegroupName,
+        'NodegroupRoleName': nodegroupRoleName,
+        'LaunchTemplateName': launchTemplateName,
+        'VpcId': vpcId,
+        'SubnetIds': subnetIds,
+        'NodeCount': eksNodeCount,
+        'MDEOnNodes?': installMdeOnNodes,
+        'AdditionalPorts': additionalPorts,
+        'InstallFalco?': falcoBool,
+        'FalcoDestinationType': falcoDestType,
+        'FalcoDestination': falcoDest,
+        'AmiOperatingSystem': amiOs,
+        'AmiArhcitecture': amiArchitecture,
+        'DatadogApiKey': datadogApiKey,
+        'InstallDatadog?': datadogBool,
+        'AdditionalAuthorizedPrincipals': additionalAuthZPrincipals
+    }
+
+    print(f'The following attributes are set for your EKS Cluster')
+    print(
+        json.dumps(
+            specDict,
+            indent=4
+        )
+    )
+    # TODO: Save state?
+    del specDict
 
     # Call the `builder` function
     ClusterManager.builder(
