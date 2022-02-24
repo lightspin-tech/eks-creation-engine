@@ -23,7 +23,6 @@ import json
 import time
 import subprocess
 import re
-import urllib3
 
 '''
 This Class manages various security assessment functions - such as running and saving Kube-bench CIS benchmarking and Trivy container scanning
@@ -65,7 +64,7 @@ class SecurityAssessment():
         with open('./ECE_SecurityAssessment.sarif', 'w') as jsonfile:
             json.dump(sarifBase, jsonfile, indent=4, default=str)
 
-        print(f'SARIF documented created successfully.')
+        print(f'Assessments completed and SARIF document created successfully as "ECE_SecurityAssessment.sarif".')
 
     def run_trivy():
         '''
@@ -76,17 +75,6 @@ class SecurityAssessment():
         trivyFindings = []
 
         print(f'Running Trivy')
-
-        # As of 8 JAN 2022, Aqua Security has removed the .tpl file for Sarif output to internal, native outputs
-        # however as of 20 JAN 2022 that still is not in a mainline release, so this is a workaround to create a local copy of it
-        http = urllib3.PoolManager()
-
-        r = http.request('get', 'https://raw.githubusercontent.com/aquasecurity/trivy/generic-sbom/contrib/sarif.tpl')
-        with open('./sarif.tpl','wb') as file:
-            file.write(r.data)
-        
-        del r
-        del http
         
         # Retrieve a list of all running Containers and create a unique list of them to pass to Trivy for scanning
         print(f'Retrieving list of all running Containers from your EKS Cluster')
@@ -117,7 +105,7 @@ class SecurityAssessment():
         # loop the list of unique container URIs and write the vulns to a new list
         for c in uniqueContainers:
             # passing '--quiet' will ensure the setup text from Trivy scanning does not make it into the JSON and corrupt it
-            trivyScanCmd = f'trivy --quiet image --format template --template "@./sarif.tpl" {c}'
+            trivyScanCmd = f'trivy --quiet image --format sarif {c}'
             trivyScanSubprocess = subprocess.run(trivyScanCmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             trivyStdout = str(trivyScanSubprocess.stdout.decode('utf-8'))
             # load JSON object from stdout
@@ -252,4 +240,3 @@ class SecurityAssessment():
         print(f'Completed Kube-bench assessment of EKS Cluster {cluster_name}')
 
         return findings
-

@@ -197,9 +197,9 @@ def assessment_preflight_check():
     subProc = subprocess.run(wgetCommand, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(subProc.stderr.decode('utf-8'))
 
-    print(f'Installing Trivy from source script')
-    # TODO: Continual updates of Trivy version https://aquasecurity.github.io/trivy/v0.22.0/getting-started/installation/#install-script
-    trivyCmd = 'curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.22.0'
+    print(f'Installing Trivy from source script for v0.24')
+    # TODO: Continual updates of Trivy version https://aquasecurity.github.io/trivy
+    trivyCmd = 'curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.24.0'
     trivyProc = subprocess.run(trivyCmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(trivyProc.stdout.decode('utf-8'))
 
