@@ -86,7 +86,7 @@ No, not at this time. There is no inherent state concept nor drift detection in 
 
 Yes! You can continue to use `ekstcl`, `boto3`, the AWS CLI and other methods to interact with your EKS Clusters. This may be required for the build out of additional post-hoc infrastructure such as adding Nodegroups or increasing the Nodecount.
 
-### 4 - Can I authorized other IAM Users or Roles? Such as a federate IAM Role or otherwise into the ClusteR?
+### 4 - Can I authorized other IAM Users or Roles? Such as a federate IAM Role or otherwise into the Cluster?
 
 Yes! Use the `--addtl_auth_principals` argument and provide a comma-seperated list of IAM Principal ARNs (Roles & Users) to add to the `system:masters` group within your `kube-config`.
 
