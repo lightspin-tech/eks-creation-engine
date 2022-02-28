@@ -18,6 +18,7 @@
 #specific language governing permissions and limitations
 #under the License.
 
+import json
 import sys
 import re
 import boto3
@@ -114,6 +115,43 @@ def create_preflight_check():
             print(f'Datadog setup was specified but a Datadog API was not provided. Please provide a valid API key and try again.')
             sys.exit(2)
 
+    # Print out creation specification - in the future this will be a "state file" for the cluster
+    specDict = {
+        'K8sVersion': k8sVersion,
+        'S3BucketName': bucketName,
+        'EBSVolumeSize': ebsVolumeSize,
+        'AmiId': amiId,
+        'InstanceType': instanceType,
+        'ClusterName': clusterName,
+        'ClusterRoleName': clusterRoleName,
+        'NodegroupName': nodegroupName,
+        'NodegroupRoleName': nodegroupRoleName,
+        'LaunchTemplateName': launchTemplateName,
+        'VpcId': vpcId,
+        'SubnetIds': subnetIds,
+        'NodeCount': eksNodeCount,
+        'MDEOnNodes?': installMdeOnNodes,
+        'AdditionalPorts': additionalPorts,
+        'InstallFalco?': falcoBool,
+        'FalcoDestinationType': falcoDestType,
+        'FalcoDestination': falcoDest,
+        'AmiOperatingSystem': amiOs,
+        'AmiArhcitecture': amiArchitecture,
+        'DatadogApiKey': datadogApiKey,
+        'InstallDatadog?': datadogBool,
+        'AdditionalAuthorizedPrincipals': additionalAuthZPrincipals
+    }
+
+    print(f'The following attributes are set for your EKS Cluster')
+    print(
+        json.dumps(
+            specDict,
+            indent=4
+        )
+    )
+    # TODO: Save state?
+    del specDict
+
     # Call the `builder` function
     ClusterManager.builder(
         kubernetes_version=k8sVersion,
@@ -197,9 +235,9 @@ def assessment_preflight_check():
     subProc = subprocess.run(wgetCommand, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(subProc.stderr.decode('utf-8'))
 
-    print(f'Installing Trivy from source script')
-    # TODO: Continual updates of Trivy version https://aquasecurity.github.io/trivy/v0.22.0/getting-started/installation/#install-script
-    trivyCmd = 'curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.22.0'
+    print(f'Installing Trivy from source script for v0.24')
+    # TODO: Continual updates of Trivy version https://aquasecurity.github.io/trivy
+    trivyCmd = 'curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.24.0'
     trivyProc = subprocess.run(trivyCmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(trivyProc.stdout.decode('utf-8'))
 

@@ -1,8 +1,31 @@
 # Lightspin EKS Creation Engine - How to Use
 
+### Table of Contents
+
+- [Installing Dependencies](#install-dependencies)
+- [IAM Permissions](#ensure-you-have-the-necessary-iam-permissions)
+- [Install Kubectl](#install-kubectl-example-shown-for-ubuntu-refer-here-for-other-os)
+- [Install Helm](#install-helm-example-shown-for-ubuntu-refer-here-for-other-os)
+- [Available Arguments](#list-all-arguments)
+- [Creating a Cluster - Basic](#creating-a-cluster-with-the-minimum-required-arguements)
+- [Creating a Cluster - Use AWS CLI Profile](#creating-a-cluster-with-the-minimum-required-arguements-using-another-aws-cli-profile)
+- [Creating a Cluster - ARM64 Amazon Linux 2](#creating-a-cluster-with-the-minimum-required-arguements-using-amazon-linux-2-arm64-nodes)
+- [Adding additional ports to EKS Security Groups](#creating-a-cluster-with-additional-ports-authorized-on-eks-security-groups)
+- [Adding additional IAM Principals to EKS](#adding-additional-iam-principals-into-your-cluster)
+- [Creating a Cluster with Falco](#creating-a-cluster-with-falco-pre-installed)
+- [Creating a Cluster with Falco - custom destination](#creating-a-cluster-with-falco-pre-installed-that-sends-alerts-to-slack)
+- [Creating a cluster with Microsoft Defender for Endpoint](#creating-a-cluster-with-microsoft-defender-for-endpoint-mde-installed-on-eks-nodes)
+- [Deleting a Cluster](#destroying-a-cluster-created-by-eks-creation-engine-ece)
+- [Updating K8s Version](#update-the-kubernetes-version-of-an-eks-cluster)
+- [Conduct a Security Assessment against EKS](#conduct-a-security-assessment-against-an-eks-cluster)
+- [Install Falco on existing Clusters](#install-and-configure-falco-on-an-existing-cluster)
+- [Install Datadog on existing Clusters](#install-and-configure-datadog-on-an-existing-cluster)
+
 ### Install dependencies
 
 ```bash
+git clone https://github.com/lightspin-tech/eks-creation-engine.git
+cd eks-creation-engine
 pip3 install -r requirements.txt
 ```
 
@@ -256,7 +279,9 @@ python3 main.py \
     --launch_template_name $LAUNCH_TEMPLATE_NAME
 ```
 
-### Update the Kubernetes version of a cluster created by EKS Creation Engine (ECE)
+### Update the Kubernetes version of an EKS cluster
+
+**Note:** You can install Falco on ***any*** EKS Cluster, created by ECE or otherwise, using the `kubectl config use-context <CONTEXT-NAME>` command
 
 ```bash
 python3 main.py \
@@ -268,6 +293,8 @@ python3 main.py \
 
 ### Conduct a security assessment against an EKS cluster
 
+**Note:** You can run the Security Assessment against ***any*** EKS Cluster, created by ECE or otherwise, using the `kubectl config use-context <CONTEXT-NAME>` command
+
 ```bash
 python3 main.py \
     --mode Assessment \
@@ -275,6 +302,8 @@ python3 main.py \
 ```
 
 ### Install and configure Falco on an existing cluster
+
+**Note:** You can install Falco on ***any*** EKS Cluster, created by ECE or otherwise, using the `kubectl config use-context <CONTEXT-NAME>` command
 
 ```bash
 SLACK_WEBHOOK="https://hooks.slack.com/services/XXXX"
@@ -286,6 +315,8 @@ python3 main.py \
 ```
 
 ### Install and configure Datadog on an existing cluster
+
+**Note:** You can install Datadog on ***any*** EKS Cluster, created by ECE or otherwise, using the `kubectl config use-context <CONTEXT-NAME>` command
 
 - Create (or locate) your Datadog API Key and place it in a secure location such as AWS Systems Manager (SSM) Parameter Store or Hashicorp Vault (*example shown for AWS SSM*)
 
@@ -309,3 +340,11 @@ python3 main.py \
     --datadog_api_key $DATADOG_API_KEY \
     --cluster_name $CLUSTER_NAME
 ```
+
+## Contact Us :telephone_receiver: :telephone_receiver:
+
+For more information, contact us at support@lightspin.io.
+
+## License :eight_spoked_asterisk: :eight_spoked_asterisk:
+
+This repository is available under the [Apache License 2.0](https://github.com/lightspin-tech/eks-creation-engine/blob/main/LICENSE).

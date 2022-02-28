@@ -1,7 +1,5 @@
 # Lightspin EKS Creation Engine
 
-![Known Vulnerabilities](https://snyk.io/test/github/jonrau-lightspin/eks-creation-engine/badge.svg)
-
 The Amazon Elastic Kubernetes Service (EKS) Creation Engine (ECE) is a Python command-line program created by the Lightspin Office of the CISO to facilitate the creation and enablement of secure EKS Clusters, optionally further assured with continual Kubernetes Security Posture Management (KSPM), Runtime Protection, and Application Performance Monitoring (APM) capabilities.
 
 ## What is this :eyes: :eyes: ?? 
@@ -17,6 +15,14 @@ At a high-level ECE...
 - Perform Kubernetes Security Posture Management (KSPM) tasks using Aqua Security's [Trivy](https://github.com/aquasecurity/trivy) (vulnerability management) and [Kube-bench](https://github.com/aquasecurity/kube-bench) (EKS CIS Benchmarking) into a [SARIF](https://sarifweb.azurewebsites.net/) JSON Report
 
 After creating a Cluster with ECE, you are free to use your own tools such as `eksctl` or Terraform to further extend!
+
+It is very easy to get started, just provide a VPC ID and *two* matching private Subnet IDs
+
+```bash
+python3 main.py \
+    --subnets subnet-123 subnet-456 \
+    --vpcid vpc-123
+```
 
 ## Why use this over IAC :raised_eyebrow: :raised_eyebrow: ??
 
@@ -53,6 +59,10 @@ For those using Infrastructure-as-Code (IAC) such as AWS CloudFormation and Hash
 
 [Read the Docs here](./docs/HOWTO.md)
 
+## FAQ :relieved: :relieved: ??
+
+[Read the FAQ here](./docs/FAQ.md)
+
 ## How can I contribute :arrow_upper_right: :arrow_upper_right: ??
 
 We are happy to take contributions from anywhere that will help expand this project. Some things that immediately come to mind...
@@ -69,4 +79,4 @@ For more information, contact us at support@lightspin.io.
 
 ## License :eight_spoked_asterisk: :eight_spoked_asterisk:
 
-This repository is available under the [Apache License 2.0](https://github.com/lightspin-tech/red-kube/blob/main/LICENSE).
+This repository is available under the [Apache License 2.0](https://github.com/lightspin-tech/eks-creation-engine/blob/main/LICENSE).

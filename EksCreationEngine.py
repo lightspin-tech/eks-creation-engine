@@ -1073,6 +1073,7 @@ class ClusterManager():
         eks = boto3.client('eks')
         sts = boto3.client('sts')
         kms = boto3.client('kms')
+        iam = boto3.client('iam')
         # Use STS GetCallerIdentity and Datetime to generate CreatedBy and CreatedAt information for tagging
         createdBy = str(sts.get_caller_identity()['Arn'])
         createdAt = str(datetime.utcnow())
@@ -1112,44 +1113,47 @@ class ClusterManager():
             createdByRoleArn = createdBy
 
         # Setup a modified version of the Default KMS Policy, eliminating some Conditional statements to allow Autoscaling, EKS, and EC2 to use the key and set Grants
+        # First, attempt to create the SLR for the Autoscaling group if it does not exist, see: https://docs.aws.amazon.com/IAM/latest/UserGuide/using-service-linked-roles.html
+        try:
+            r = iam.create_service_linked_role(AWSServiceName='autoscaling.amazonaws.com')
+            slrRole = str(r['Role']['RoleName'])
+            print(f'Created Service-linked Role for Autoscaling called {slrRole}')
+        except Exception as e:
+            if str(e) == 'An error occurred (InvalidInput) when calling the CreateServiceLinkedRole operation: Service role name AWSServiceRoleForAutoScaling has been taken in this account, please try a different suffix.':
+                pass
+            else:
+                print(f'Error encountered: {e}')
+                RollbackManager.rollback_from_cache(cache=cache)
+
+        # Then check if there are any additional authorized principals specified for the cluster to add to the below static list of principals
+
+        # Static list of who is *supposed* to have access
+        kmsAuthZPrincipals = [
+            clusterRoleArn,
+            nodegroupRoleArn,
+            createdByRoleArn,
+            f'arn:aws:iam::{acctId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling'
+        ]
+
+        # Check if additional AuthZ IAM Principals are even provided. If so, add them to the list if they're not there already
+        if addtl_auth_principals:
+            for arn in addtl_auth_principals:
+                if arn not in kmsAuthZPrincipals:
+                    kmsAuthZPrincipals.append(arn)
+
         keyPolicyJson = {
             'Version':'2012-10-17',
             'Id':'ecekeypolicy',
             'Statement': [
-                # full key usage by the key account
+                # full key usage by whoever creates the key
                 {
-                    'Sid': 'Enable IAM policies',
-                    'Effect': 'Allow',
-                    'Principal': {
-                        'AWS': f'arn:aws:iam::{acctId}:root'
-                    },
-                    'Action':'kms:*',
-                    'Resource':'*'
-                },
-                # Allows usage by whoever creates the key
-                {
-                    'Sid': 'Allow access for Key Administrators',
+                    'Sid': 'Key Creator Admin',
                     'Effect': 'Allow',
                     'Principal': {
                         'AWS': createdByRoleArn
                     },
-                    'Action': [
-                        'kms:Create*',
-                        'kms:Describe*',
-                        'kms:Enable*',
-                        'kms:List*',
-                        'kms:Put*',
-                        'kms:Update*',
-                        'kms:Revoke*',
-                        'kms:Disable*',
-                        'kms:Get*',
-                        'kms:Delete*',
-                        'kms:TagResource',
-                        'kms:UntagResource',
-                        'kms:ScheduleKeyDeletion',
-                        'kms:CancelKeyDeletion'
-                    ],
-                    'Resource': '*'
+                    'Action':'kms:*',
+                    'Resource':'*'
                 },
                 # This allows usage of the key by the Cluster & Nodegroup and aws-managed service principals
                 # Creator is added throughout as well
@@ -1158,12 +1162,7 @@ class ClusterManager():
                     'Sid': 'Allow use of the key',
                     'Effect': 'Allow',
                     'Principal': {
-                        'AWS': [
-                            clusterRoleArn,
-                            nodegroupRoleArn,
-                            createdByRoleArn,
-                            f'arn:aws:iam::{acctId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling'
-                        ],
+                        'AWS': kmsAuthZPrincipals,
                         'Service': [
                             'autoscaling.amazonaws.com',
                             'ec2.amazonaws.com'
@@ -1182,12 +1181,7 @@ class ClusterManager():
                     'Sid': 'Allow attachment of persistent resources',
                     'Effect': 'Allow',
                     'Principal': {
-                        'AWS': [
-                            clusterRoleArn,
-                            nodegroupRoleArn,
-                            createdByRoleArn,
-                            f'arn:aws:iam::{acctId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling'
-                        ],
+                        'AWS': kmsAuthZPrincipals,
                         'Service': [
                             'autoscaling.amazonaws.com',
                             'ec2.amazonaws.com'
