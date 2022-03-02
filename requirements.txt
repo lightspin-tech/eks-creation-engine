@@ -1,6 +1,6 @@
-art>=5.4,<5.5
-awscli>=1.22.65,<1.23.0
-boto3>=1.21.10,<1.22.0
-clint>=0.5.1,<0.6.0
-termcolor>=1.1.0,<1.2.0
-urllib3>=1.26.8,<1.27.0
+awscli
+boto3
+art
+termcolor
+clint
+urllib3
