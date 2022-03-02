@@ -1,48 +1,56 @@
-#This file is part of Lightspin EKS Creation Engine.
-#SPDX-License-Identifier: Apache-2.0
-
-#Licensed to the Apache Software Foundation (ASF) under one
-#or more contributor license agreements.  See the NOTICE file
-#distributed with this work for additional information
-#regarding copyright ownership.  The ASF licenses this file
-#to you under the Apache License, Version 2.0 (the
-#"License"); you may not use this file except in compliance
-#with the License.  You may obtain a copy of the License at
-
-#http://www.apache.org/licenses/LICENSE-2.0
-
-#Unless required by applicable law or agreed to in writing,
-#software distributed under the License is distributed on an
-#"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-#KIND, either express or implied.  See the License for the
-#specific language governing permissions and limitations
-#under the License.
-
+# This file is part of Lightspin EKS Creation Engine.
+# SPDX-License-Identifier: Apache-2.0
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+import argparse
 import json
-import sys
 import re
+import subprocess
+import sys
+
 import boto3
 import botocore
-import argparse
-import subprocess
-from art import text2art
 import termcolor
-from clint.textui import colored, puts
-from EksCreationEngine import ClusterManager, UpdateManager, RollbackManager
+from art import text2art
+from clint.textui import colored
+from clint.textui import puts
+
+from EksCreationEngine import ClusterManager
+from EksCreationEngine import RollbackManager
+from EksCreationEngine import UpdateManager
 from plugins.ECEDatadog import DatadogSetup
 from plugins.ECEFalco import FalcoSetup
 from plugins.ECESecurity import SecurityAssessment
+
 
 def print_logo():
     textArt = text2art("EKS   CREATION   ENGINE")
     print(termcolor.colored(textArt, 'red'))
     puts(colored.red("CREATED BY THE LIGHTSPIN OFFICE OF THE CISO"))
-    puts(colored.red("For more information about Lightspin reach out to support@lightspin.io or visit us at https://lightspin.io"))
+    puts(
+        colored.red(
+            "For more information about Lightspin reach out to support@lightspin.io or visit us at https://lightspin.io"
+        )
+    )
+
 
 def stay_dangerous():
     textArt = text2art("STAY   DANGEROUS")
     print(termcolor.colored(textArt, 'red'))
     puts(colored.red("With Love, the Lightspin Office of the CISO"))
+
 
 def create_preflight_check():
     '''
@@ -57,40 +65,43 @@ def create_preflight_check():
     amiId = args.ami_id
     if amiId != 'SSM':
         # AMI Regex
-        amiRegex = re.compile('^(?:(?:ami)(?:-[a-zA-Z0-9]+)?\b|(?:[0-9]{1,3}\.){3}[0-9]{1,3})(?:\s*,\s*(?:(?:ami)(?:-[a-zA-Z0-9]+)?\b|(?:[0-9]{1,3}\.){3}[0-9]{1,3}))*$')
+        amiRegex = re.compile(
+            '^(?:(?:ami)(?:-[a-zA-Z0-9]+)?\b|(?:[0-9]{1,3}\\.){3}[0-9]{1,3})(?:\\s*,\\s*(?:(?:ami)(?:-[a-zA-Z0-9]+)?\b|(?:[0-9]{1,3}\\.){3}[0-9]{1,3}))*$'
+        )
         # Attempt to match
         amiRegexCheck = amiRegex.search(amiId)
         if not amiRegexCheck:
-            print(f'Improperly AMI ID provided, does not match regex, check value and submit request again')
+            print(
+                f'Improperly AMI ID provided, does not match regex, check value and submit request again'
+            )
             sys.exit(2)
 
     # Check if an EKS Cluster exists for provided name
     try:
-        eks.describe_cluster(
-            name=clusterName
-        )
+        eks.describe_cluster(name=clusterName)
     except botocore.exceptions.ClientError as error:
         # If we have an "ResourceNotFoundException" error it means the cluster doesnt exist - which is what we want
         if error.response['Error']['Code'] == 'ResourceNotFoundException':
             pass
         else:
-            print(f'An EKS Cluster with the name {clusterName} already exists. Please specify another name and try again')
+            print(
+                f'An EKS Cluster with the name {clusterName} already exists. Please specify another name and try again'
+            )
             sys.exit(2)
-    
+
     # Check if an EKS Nodegroup exists for provided name
     try:
-        eks.describe_nodegroup(
-            clusterName=clusterName,
-            nodegroupName=nodegroupName
-        )
+        eks.describe_nodegroup(clusterName=clusterName, nodegroupName=nodegroupName)
     except botocore.exceptions.ClientError as error:
         # If we have an "ResourceNotFoundException" error it means the cluster/nodegroup doesnt exist - which is what we want
         if error.response['Error']['Code'] == 'ResourceNotFoundException':
             pass
         else:
-            print(f'An EKS Nodegroup with the name {nodegroupName} already exists. Please specify another name and try again')
+            print(
+                f'An EKS Nodegroup with the name {nodegroupName} already exists. Please specify another name and try again'
+            )
             sys.exit(2)
-    
+
     # Check for a provided VPC
     if vpcId == None:
         print(f'VPC ID is required for cluster creation. Please specify a VPC ID and try again.')
@@ -106,13 +117,17 @@ def create_preflight_check():
     # Ensure a S3 Bucket was provided if MDE installation is true
     if installMdeOnNodes == 'True':
         if bucketName == None:
-            print(f'S3 Bucket name was not provided. Please provide a valid S3 Bucket and try again')
+            print(
+                f'S3 Bucket name was not provided. Please provide a valid S3 Bucket and try again'
+            )
             sys.exit(2)
 
     # Ensure a Datadog API key is provided if Datadog installation is true
     if datadogBool == 'True':
         if datadogApiKey == None:
-            print(f'Datadog setup was specified but a Datadog API was not provided. Please provide a valid API key and try again.')
+            print(
+                f'Datadog setup was specified but a Datadog API was not provided. Please provide a valid API key and try again.'
+            )
             sys.exit(2)
 
     # Print out creation specification - in the future this will be a "state file" for the cluster
@@ -139,16 +154,11 @@ def create_preflight_check():
         'AmiArhcitecture': amiArchitecture,
         'DatadogApiKey': datadogApiKey,
         'InstallDatadog?': datadogBool,
-        'AdditionalAuthorizedPrincipals': additionalAuthZPrincipals
+        'AdditionalAuthorizedPrincipals': additionalAuthZPrincipals,
     }
 
     print(f'The following attributes are set for your EKS Cluster')
-    print(
-        json.dumps(
-            specDict,
-            indent=4
-        )
-    )
+    print(json.dumps(specDict, indent=4))
     # TODO: Save state?
     del specDict
 
@@ -176,10 +186,11 @@ def create_preflight_check():
         ami_architecture=amiArchitecture,
         datadog_api_key=datadogApiKey,
         datadog_bool=datadogBool,
-        addtl_auth_principals=additionalAuthZPrincipals
+        addtl_auth_principals=additionalAuthZPrincipals,
     )
 
     stay_dangerous()
+
 
 def delete_preflight_check():
     print_logo()
@@ -190,22 +201,22 @@ def delete_preflight_check():
         cluster_role_name=clusterRoleName,
         nodegroup_name=nodegroupName,
         nodegroup_role_name=nodegroupRoleName,
-        launch_template_name=launchTemplateName
+        launch_template_name=launchTemplateName,
     )
 
     stay_dangerous()
+
 
 def update_preflight_check():
     print_logo()
 
     # Call the `update_kubernetes_version` function and attempt to version bump K8s of Clusters & Nodes
     UpdateManager.update_kubernetes_version(
-        cluster_name=clusterName,
-        kubernetes_version=k8sVersion,
-        nodegroup_name=nodegroupName
+        cluster_name=clusterName, kubernetes_version=k8sVersion, nodegroup_name=nodegroupName
     )
 
     stay_dangerous()
+
 
 def assessment_preflight_check():
     '''
@@ -217,13 +228,13 @@ def assessment_preflight_check():
     eks = boto3.client('eks')
     # Check if an EKS Cluster exists for provided name
     try:
-        eks.describe_cluster(
-            name=clusterName
-        )
+        eks.describe_cluster(name=clusterName)
     except botocore.exceptions.ClientError as error:
         # If we have an "ResourceNotFoundException" error it means the cluster doesnt exist - which is what we want
         if error.response['Error']['Code'] == 'ResourceNotFoundException':
-            print(f'An EKS Cluster with the name {clusterName} does not exist. Please specify another name and try again')
+            print(
+                f'An EKS Cluster with the name {clusterName} does not exist. Please specify another name and try again'
+            )
             sys.exit(2)
         else:
             pass
@@ -232,20 +243,19 @@ def assessment_preflight_check():
 
     url = 'https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-eks.yaml'
     wgetCommand = f'wget {url}'
-    subProc = subprocess.run(wgetCommand, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subProc = subprocess.run(wgetCommand, shell=True, capture_output=True)
     print(subProc.stderr.decode('utf-8'))
 
     print(f'Installing Trivy from source script for v0.24')
     # TODO: Continual updates of Trivy version https://aquasecurity.github.io/trivy
     trivyCmd = 'curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.24.0'
-    trivyProc = subprocess.run(trivyCmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    trivyProc = subprocess.run(trivyCmd, shell=True, capture_output=True)
     print(trivyProc.stdout.decode('utf-8'))
 
-    SecurityAssessment.start_assessment(
-        cluster_name=clusterName
-    )
+    SecurityAssessment.start_assessment(cluster_name=clusterName)
 
     stay_dangerous()
+
 
 def setup_falco_preflight_check():
     '''
@@ -258,32 +268,36 @@ def setup_falco_preflight_check():
     eks = boto3.client('eks')
     # Check if an EKS Cluster exists for provided name
     try:
-        eks.describe_cluster(
-            name=clusterName
-        )
+        eks.describe_cluster(name=clusterName)
     except botocore.exceptions.ClientError as error:
         # If we have an "ResourceNotFoundException" error it means the cluster doesnt exist - which is what we want
         if error.response['Error']['Code'] == 'ResourceNotFoundException':
-            print(f'An EKS Cluster with the name {clusterName} does not exist. Please specify another name and try again')
+            print(
+                f'An EKS Cluster with the name {clusterName} does not exist. Please specify another name and try again'
+            )
             sys.exit(2)
         else:
             pass
-    
+
     if mode == 'SetupFalco':
         if falcoDestType == 'Slack' or falcoDestType == 'Teams':
             if falcoDest == None:
-                print(f'No destination was provided for "--falco_sidekick_destination_type", please try again.')
+                print(
+                    f'No destination was provided for "--falco_sidekick_destination_type", please try again.'
+                )
                 sys.exit(2)
         elif falcoDestType == 'Datadog':
             if datadogApiKey == None:
-               print(f'Datadog destination for Falco was specified but a Datadog API was not provided. Please provide a valid API key and try again.')
-               sys.exit(2)
+                print(
+                    f'Datadog destination for Falco was specified but a Datadog API was not provided. Please provide a valid API key and try again.'
+                )
+                sys.exit(2)
 
         FalcoSetup.falco_initialization(
             cluster_name=clusterName,
             falco_mode='Create',
             falco_sidekick_destination_type=falcoDestType,
-            falco_sidekick_destination=falcoDest
+            falco_sidekick_destination=falcoDest,
         )
         stay_dangerous()
     elif mode == 'RemoveFalco':
@@ -292,12 +306,13 @@ def setup_falco_preflight_check():
             falco_mode='Delete',
             falco_sidekick_destination_type=falcoDestType,
             falco_sidekick_destination=falcoDest,
-            datadog_api_key=datadogApiKey
+            datadog_api_key=datadogApiKey,
         )
         stay_dangerous()
     else:
         print(f'Somehow, an incompatible mode detected for Falco, please try again.')
         sys.exit(2)
+
 
 def setup_datadog_preflight_check():
     '''
@@ -309,33 +324,31 @@ def setup_datadog_preflight_check():
     eks = boto3.client('eks')
     # Check if an EKS Cluster exists for provided name
     try:
-        eks.describe_cluster(
-            name=clusterName
-        )
+        eks.describe_cluster(name=clusterName)
     except botocore.exceptions.ClientError as error:
         # If we have an "ResourceNotFoundException" error it means the cluster doesnt exist - which is what we want
         if error.response['Error']['Code'] == 'ResourceNotFoundException':
-            print(f'An EKS Cluster with the name {clusterName} does not exist. Please specify another name and try again')
+            print(
+                f'An EKS Cluster with the name {clusterName} does not exist. Please specify another name and try again'
+            )
             sys.exit(2)
         else:
             pass
 
     if mode == 'SetupDatadog':
         if datadogApiKey == None:
-            print(f'Datadog setup was specified but a Datadog API was not provided. Please provide a valid API key and try again.')
+            print(
+                f'Datadog setup was specified but a Datadog API was not provided. Please provide a valid API key and try again.'
+            )
             sys.exit(2)
         # Datadoggy time!
         DatadogSetup.initialization(
-            cluster_name=clusterName,
-            datadog_mode='Setup',
-            datadog_api_key=datadogApiKey
+            cluster_name=clusterName, datadog_mode='Setup', datadog_api_key=datadogApiKey
         )
     elif mode == 'RemoveDatadog':
         # Bye Datadoggy time!
         DatadogSetup.initialization(
-            cluster_name=clusterName,
-            datadog_mode='Remove',
-            datadog_api_key=datadogApiKey
+            cluster_name=clusterName, datadog_mode='Remove', datadog_api_key=datadogApiKey
         )
     else:
         print(f'Somehow, an incompatible mode detected for Datadog, please try again.')
@@ -343,8 +356,9 @@ def setup_datadog_preflight_check():
 
     stay_dangerous()
 
+
 if __name__ == "__main__":
-    # Feed all of the arguments 
+    # Feed all of the arguments
     '''
     >> argparse argument | **kwargs <<
     --profile | profile
@@ -380,92 +394,101 @@ if __name__ == "__main__":
         '--profile',
         help='Specify Profile name if multiple profiles are used',
         required=False,
-        default=[]
+        default=[],
     )
     # --mode
     parser.add_argument(
         '--mode',
         help='Create, Destory or Update an existing Cluster. Updates limited to K8s Version bump. Destroy attempts to delete everything that this utility creates. Assessment will attempt to run various K8s security tools. SetupFalco will attempt to install Falco on existing Clusters. RemoveFalco will attempt to rollback SetupFalco deployments. SetupDatadog will attempt to install DataDog on existing Cluster. RemoveDatadog will attempt to rollback SetupDatadog deployments - defaults to Create',
         required=False,
-        choices=['Create', 'Destroy', 'Update', 'Assessment', 'SetupFalco', 'RemoveFalco', 'SetupDatadog', 'RemoveDatadog'],
-        default='Create'
+        choices=[
+            'Create',
+            'Destroy',
+            'Update',
+            'Assessment',
+            'SetupFalco',
+            'RemoveFalco',
+            'SetupDatadog',
+            'RemoveDatadog',
+        ],
+        default='Create',
     )
     # --k8s_version
     parser.add_argument(
         '--k8s_version',
         help='Version of K8s to use for EKS - defaults to 1.21 as of 13 JAN 2022 - used for Create and Update',
         required=False,
-        default='1.21'
+        default='1.21',
     )
     # --s3_bucket_name
     parser.add_argument(
         '--s3_bucket_name',
         help='S3 Bucket with required artifacts for EKS to access for bootstrapping if --mde_on_nodes=True - used for Create',
         required=False,
-        default=None
+        default=None,
     )
     # --ebs_volume_size
     parser.add_argument(
         '--ebs_volume_size',
         help='EBS volume size (in GB) for EKS nodegroup EC2 launch template - used for Create',
         required=False,
-        default='20'
+        default='20',
     )
     # --ami
     parser.add_argument(
         '--ami_id',
         help='Custom AMI ID for EKS nodegroup EC2 launch template. Defaults to "SSM" which tells the program to use an SSM-derived image for your K8s version matching --ami_os and --ami_architecture - used for Create',
         required=False,
-        default='SSM'
+        default='SSM',
     )
     # --instance_type
     parser.add_argument(
         '--instance_type',
         help='EC2 Instance type for EKS nodegroup EC2 launch template',
         required=False,
-        default='t3.medium'
+        default='t3.medium',
     )
     # --cluster_name
     parser.add_argument(
         '--cluster_name',
         help='Name for your EKS Cluster - used for Create, Delete and Update',
         required=False,
-        default='LightspinECECluster'
+        default='LightspinECECluster',
     )
     # --cluster_role_name
     parser.add_argument(
         '--cluster_role_name',
         help='Name for your EKS Cluster Service IAM Role',
         required=False,
-        default='ClusterServiceRoleForEKS'
+        default='ClusterServiceRoleForEKS',
     )
     # --nodegroup_name
     parser.add_argument(
         '--nodegroup_name',
         help='Name for your EKS Nodegroup - used for Create, Delete and Update',
         required=False,
-        default='LightspinECENodegroup'
+        default='LightspinECENodegroup',
     )
     # --nodegroup_role_name
     parser.add_argument(
         '--nodegroup_role_name',
         help='Name for your EKS Nodegroup Service IAM Role (also given to policy)',
         required=False,
-        default='NodegroupServiceRoleForEKS'
+        default='NodegroupServiceRoleForEKS',
     )
     # --launch_template_name
     parser.add_argument(
         '--launch_template_name',
         help='Name for your Nodegroup EC2 launch template - used for Create and Delete',
         required=False,
-        default='LightspinECECustomEKSAMI'
+        default='LightspinECECustomEKSAMI',
     )
     # --vpcid
     parser.add_argument(
         '--vpcid',
         help='VPC ID to launch EKS Cluster and Nodegroups into',
         required=False,
-        default=None
+        default=None,
     )
     # --subnets
     # for help https://www.kite.com/python/answers/how-to-pass-a-list-as-an-argument-using-argparse-in-python
@@ -473,14 +496,14 @@ if __name__ == "__main__":
         '--subnets',
         nargs='+',
         help='Subnets to launch EKS Cluster and Nodegroups into - provide subnet IDs separated by spaces only',
-        required=False
+        required=False,
     )
     # --node_count
     parser.add_argument(
         '--node_count',
         help='Amount of Nodes (EC2 instances) in EKS Nodegroup, will be used for min and desired values with 2 times for max - default 2',
         required=False,
-        default='2'
+        default='2',
     )
     # --mde_on_nodes
     parser.add_argument(
@@ -488,7 +511,7 @@ if __name__ == "__main__":
         help='Whether or not to install MDE on EKS Nodes via bootstrap - requires S3 Bucket and install scripts if true - defaults to False',
         required=False,
         choices=['True', 'False'],
-        default='False'
+        default='False',
     )
     # --additional_ports
     # for help https://www.kite.com/python/answers/how-to-pass-a-list-as-an-argument-using-argparse-in-python
@@ -496,7 +519,7 @@ if __name__ == "__main__":
         '--additional_ports',
         nargs='+',
         help='Additional application ports which need to be allowed in EKS Security Groups - 443, 53, 8765, 2801, and 10250 already included',
-        required=False
+        required=False,
     )
     # --falco
     parser.add_argument(
@@ -504,7 +527,7 @@ if __name__ == "__main__":
         help='For CREATE Mode, this flag specifies if you want to install and configure Falco on your Clusters - defaults to False',
         required=False,
         choices=['True', 'False'],
-        default='False'
+        default='False',
     )
     # --falco_sidekick_destination_type
     parser.add_argument(
@@ -512,14 +535,14 @@ if __name__ == "__main__":
         help='The output location for Falco Sidekick to send Falco alerts to. Defaults to SNS which also creates a new Topic unless a Destination is provided',
         required=False,
         choices=['SNS', 'Slack', 'Teams', 'Datadog'],
-        default='SNS'
+        default='SNS',
     )
     # --falco_sidekick_destination
     parser.add_argument(
         '--falco_sidekick_destination',
         help='The logical location matching the Sidekick Destination Type to forward Falco alerts. E.g., ARN, Webhook URL, Datadog URL, etc.',
         required=False,
-        default=None
+        default=None,
     )
     # --ami_os
     parser.add_argument(
@@ -527,7 +550,7 @@ if __name__ == "__main__":
         help='If using "SSM" for --ami use this argument to specify what OS you want to use (alas = Amazon Linux 2, ubuntu = Ubuntu 20.04) - defaults to ubuntu',
         required=False,
         choices=['alas', 'ubuntu'],
-        default='ubuntu'
+        default='ubuntu',
     )
     # --ami_architecture
     parser.add_argument(
@@ -535,7 +558,7 @@ if __name__ == "__main__":
         help='If using "SSM" for --ami use this argument to specify what architecture you want to use - defaults to amd64',
         required=False,
         choices=['amd64', 'arm64'],
-        default='amd64'
+        default='amd64',
     )
     # --datadog
     parser.add_argument(
@@ -543,14 +566,14 @@ if __name__ == "__main__":
         help='For CREATE Mode, this flag specifies if you want to install and configure Datadog APM on your Clusters - defaults to False',
         required=False,
         choices=['True', 'False'],
-        default='False'
+        default='False',
     )
     # --datadog_api_key
     parser.add_argument(
         '--datadog_api_key',
         help='Datadog API Key. This is used for setting up Datadog with Create and SetupDatadog Modes as well as Datadog integration for FalcoSidekick',
         required=False,
-        default=None
+        default=None,
     )
     # addtl_auth_principals
     # for help https://www.kite.com/python/answers/how-to-pass-a-list-as-an-argument-using-argparse-in-python
@@ -558,7 +581,7 @@ if __name__ == "__main__":
         '--addtl_auth_principals',
         nargs='+',
         help='Additional IAM Role ARNs to authorized as system:masters',
-        required=False
+        required=False,
     )
 
     args = parser.parse_args()

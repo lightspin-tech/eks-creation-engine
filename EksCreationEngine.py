@@ -1,39 +1,37 @@
-#This file is part of Lightspin EKS Creation Engine.
-#SPDX-License-Identifier: Apache-2.0
-
-#Licensed to the Apache Software Foundation (ASF) under one
-#or more contributor license agreements.  See the NOTICE file
-#distributed with this work for additional information
-#regarding copyright ownership.  The ASF licenses this file
-#to you under the Apache License, Version 2.0 (the
+# This file is part of Lightspin EKS Creation Engine.
+# SPDX-License-Identifier: Apache-2.0
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
 #'License'); you may not use this file except in compliance
-#with the License.  You may obtain a copy of the License at
-
-#http://www.apache.org/licenses/LICENSE-2.0
-
-#Unless required by applicable law or agreed to in writing,
-#software distributed under the License is distributed on an
+# with the License.  You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
 #'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-#KIND, either express or implied.  See the License for the
-#specific language governing permissions and limitations
-#under the License.
-
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 import base64
+import json
+import re
+import subprocess
 import sys
+import time
+from datetime import datetime
+
 import boto3
 import botocore.exceptions
-import json
-from datetime import datetime
-import time
-import subprocess
-import re
+
 from plugins.ECEDatadog import DatadogSetup
 from plugins.ECEFalco import FalcoSetup
 
 cache = list()
 
-class ClusterManager():
 
+class ClusterManager:
     def get_latest_eks_optimized_ubuntu(kubernetes_version, ami_id, ami_os, ami_architecture):
         '''
         This function either receives an AMI ID from main.py or receives the default value of 'SSM' which is matched against the arguments
@@ -47,22 +45,30 @@ class ClusterManager():
                 # AMD64
                 if ami_architecture == 'amd64':
                     # /aws/service/canonical/ubuntu/eks/20.04/1.21/stable/current/amd64/hvm/ebs-gp2/ami-id
-                    publicParameter = str(f'/aws/service/canonical/{ami_os}/eks/20.04/{kubernetes_version}/stable/current/{ami_architecture}/hvm/ebs-gp2/ami-id')
+                    publicParameter = str(
+                        f'/aws/service/canonical/{ami_os}/eks/20.04/{kubernetes_version}/stable/current/{ami_architecture}/hvm/ebs-gp2/ami-id'
+                    )
                 # ARM64
                 else:
                     # /aws/service/canonical/ubuntu/eks/20.04/1.21/stable/current/arm64/hvm/ebs-gp2/ami-id
-                    publicParameter = str(f'/aws/service/canonical/{ami_os}/eks/20.04/{kubernetes_version}/stable/current/{ami_architecture}/hvm/ebs-gp2/ami-id')
+                    publicParameter = str(
+                        f'/aws/service/canonical/{ami_os}/eks/20.04/{kubernetes_version}/stable/current/{ami_architecture}/hvm/ebs-gp2/ami-id'
+                    )
             # Amazon Linux 2
             # Public Params search in the console is fucky, check here: https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html
             else:
                 # AMD64
                 if ami_architecture == 'amd64':
                     # /aws/service/eks/optimized-ami/1.21/amazon-linux-2/recommended/image_id
-                    publicParameter = str(f'/aws/service/eks/optimized-ami/{kubernetes_version}/amazon-linux-2/recommended/image_id')
+                    publicParameter = str(
+                        f'/aws/service/eks/optimized-ami/{kubernetes_version}/amazon-linux-2/recommended/image_id'
+                    )
                 # ARM64
                 else:
                     # /aws/service/eks/optimized-ami/1.21/amazon-linux-2-arm64/recommended/image_id
-                    publicParameter = str(f'/aws/service/eks/optimized-ami/{kubernetes_version}/amazon-linux-2-arm64/recommended/image_id')
+                    publicParameter = str(
+                        f'/aws/service/eks/optimized-ami/{kubernetes_version}/amazon-linux-2-arm64/recommended/image_id'
+                    )
 
             # retrieve the AMI ID and return it
             try:
@@ -98,12 +104,10 @@ class ClusterManager():
             'Statement': [
                 {
                     'Effect': 'Allow',
-                    'Principal': {
-                        'Service': 'eks.amazonaws.com'
-                    },
-                    'Action': 'sts:AssumeRole'
+                    'Principal': {'Service': 'eks.amazonaws.com'},
+                    'Action': 'sts:AssumeRole',
                 }
-            ]
+            ],
         }
 
         try:
@@ -114,45 +118,29 @@ class ClusterManager():
                 Description='Allows access to other AWS service resources that are required to operate clusters managed by EKS',
                 MaxSessionDuration=3600,
                 Tags=[
-                    {
-                        'Key': 'Name',
-                        'Value': cluster_role_name
-                    },
-                    {
-                        'Key': 'CreatedBy',
-                        'Value': createdBy
-                    },
-                    {
-                        'Key': 'CreatedAt',
-                        'Value': createdAt
-                    },
-                    {
-                        'Key': 'CreatedWith',
-                        'Value': 'Lightspin ECE'
-                    }
-                ]
+                    {'Key': 'Name', 'Value': cluster_role_name},
+                    {'Key': 'CreatedBy', 'Value': createdBy},
+                    {'Key': 'CreatedAt', 'Value': createdAt},
+                    {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                ],
             )
             # Attach required Cluster Policy (AWS Managed) or get following error
             # botocore.errorfactory.InvalidParameterException: An error occurred (InvalidParameterException) when calling the CreateCluster operation: The provided role doesn't have the Amazon EKS Managed Policies associated with it. Please ensure the following policies [arn:aws:iam::aws:policy/AmazonEKSClusterPolicy] are attached
             waiter = iam.get_waiter('role_exists')
 
-            waiter.wait(
-                RoleName=cluster_role_name,
-                WaiterConfig={
-                    'Delay': 3,
-                    'MaxAttempts': 20
-                }
-            )
+            waiter.wait(RoleName=cluster_role_name, WaiterConfig={'Delay': 3, 'MaxAttempts': 20})
 
             iam.attach_role_policy(
                 RoleName=cluster_role_name,
-                PolicyArn='arn:aws:iam::aws:policy/AmazonEKSClusterPolicy'
+                PolicyArn='arn:aws:iam::aws:policy/AmazonEKSClusterPolicy',
             )
             roleArn = str(r['Role']['Arn'])
         except botocore.exceptions.ClientError as error:
             # If we have an 'EntityAlreadyExists' error it means a Role of the same name exists, we can try to use it instead
             if error.response['Error']['Code'] == 'EntityAlreadyExists':
-                print(f'The supplied role name of {cluster_role_name} already exists, attempting to use it')
+                print(
+                    f'The supplied role name of {cluster_role_name} already exists, attempting to use it'
+                )
                 roleArn = f'arn:aws:iam::{acctId}:role/{cluster_role_name}'
             else:
                 print(f'Error encountered: {error}')
@@ -191,14 +179,11 @@ class ClusterManager():
                         's3:GetObjectAcl',
                         's3:GetObject',
                         's3:GetBucketAcl',
-                        's3:GetBucketLocation'
+                        's3:GetBucketLocation',
                     ],
-                    'Resource': [
-                        f'arn:aws:s3:::{bucket_name}/*',
-                        f'arn:aws:s3:::{bucket_name}'
-                    ]
+                    'Resource': [f'arn:aws:s3:::{bucket_name}/*', f'arn:aws:s3:::{bucket_name}'],
                 }
-            ]
+            ],
         }
 
         try:
@@ -208,30 +193,20 @@ class ClusterManager():
                 PolicyDocument=json.dumps(iamPolicyDoc),
                 Description='Allows access to specific S3 buckets for node groups managed by EKS - Created by Lightspin ECE',
                 Tags=[
-                    {
-                        'Key': 'Name',
-                        'Value': policyName
-                    },
-                    {
-                        'Key': 'CreatedBy',
-                        'Value': createdBy
-                    },
-                    {
-                        'Key': 'CreatedAt',
-                        'Value': createdAt
-                    },
-                    {
-                        'Key': 'CreatedWith',
-                        'Value': 'Lightspin ECE'
-                    }
-                ]
+                    {'Key': 'Name', 'Value': policyName},
+                    {'Key': 'CreatedBy', 'Value': createdBy},
+                    {'Key': 'CreatedAt', 'Value': createdAt},
+                    {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                ],
             )
             policyArn = str(r['Policy']['Arn'])
         except botocore.exceptions.ClientError as error:
             # If we have an 'EntityAlreadyExists' error it means a Role of the same name exists, we can try to use it instead
             # we will assume it has the right permissions after all
             if error.response['Error']['Code'] == 'EntityAlreadyExists':
-                print(f'The supplied role policy name of {policyName} already exists, attempting to use it')
+                print(
+                    f'The supplied role policy name of {policyName} already exists, attempting to use it'
+                )
                 policyArn = f'arn:aws:iam::{acctId}:policy/{policyName}'
             else:
                 print(f'Error encountered: {error}')
@@ -266,12 +241,14 @@ class ClusterManager():
             'arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy',
             'arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly',
             'arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy',
-            'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
+            'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore',
         ]
 
         # Grab S3 Node Group policy from other Function & add to List if MDE is enabled
         if mde_on_nodes == 'True':
-            s3PolicyArn = ClusterManager.create_managed_nodegroup_s3_policy(bucket_name, nodegroup_role_name)
+            s3PolicyArn = ClusterManager.create_managed_nodegroup_s3_policy(
+                bucket_name, nodegroup_role_name
+            )
             nodegroupAwsManagedPolicies.append(s3PolicyArn)
 
         # Trust Policy for EKS NodeGroup Role trusts EC2
@@ -280,12 +257,10 @@ class ClusterManager():
             'Statement': [
                 {
                     'Effect': 'Allow',
-                    'Principal': {
-                        'Service': 'ec2.amazonaws.com'
-                    },
-                    'Action': 'sts:AssumeRole'
+                    'Principal': {'Service': 'ec2.amazonaws.com'},
+                    'Action': 'sts:AssumeRole',
                 }
-            ]
+            ],
         }
 
         try:
@@ -296,34 +271,16 @@ class ClusterManager():
                 Description='Allows access to other AWS service resources that are required to operate node groups managed by EKS',
                 MaxSessionDuration=3600,
                 Tags=[
-                    {
-                        'Key': 'Name',
-                        'Value': roleName
-                    },
-                    {
-                        'Key': 'CreatedBy',
-                        'Value': createdBy
-                    },
-                    {
-                        'Key': 'CreatedAt',
-                        'Value': createdAt
-                    },
-                    {
-                        'Key': 'CreatedWith',
-                        'Value': 'Lightspin ECE'
-                    }
-                ]
+                    {'Key': 'Name', 'Value': roleName},
+                    {'Key': 'CreatedBy', 'Value': createdBy},
+                    {'Key': 'CreatedAt', 'Value': createdAt},
+                    {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                ],
             )
             roleArn = str(r['Role']['Arn'])
 
             waiter = iam.get_waiter('role_exists')
-            waiter.wait(
-                RoleName=roleName,
-                WaiterConfig={
-                    'Delay': 3,
-                    'MaxAttempts': 20
-                }
-            )
+            waiter.wait(RoleName=roleName, WaiterConfig={'Delay': 3, 'MaxAttempts': 20})
 
         except botocore.exceptions.ClientError as error:
             # If we have an 'EntityAlreadyExists' error it means a Role of the same name exists, we can try to use it instead
@@ -341,10 +298,7 @@ class ClusterManager():
         # Loop through List of policies and attach Policies to Role, handle errors if already attached
         try:
             for policy in nodegroupAwsManagedPolicies:
-                iam.attach_role_policy(
-                    RoleName=roleName,
-                    PolicyArn=policy
-                )
+                iam.attach_role_policy(RoleName=roleName, PolicyArn=policy)
         except Exception as e:
             print(f'Error encountered: {e}')
             RollbackManager.rollback_from_cache(cache=cache)
@@ -385,7 +339,7 @@ class ClusterManager():
             for p in additional_ports:
                 if int(p) not in defaultPortSet:
                     defaultPortSet.append(int(p))
-        
+
         # remove the list, it's not needed anymore
         del additional_ports
 
@@ -420,41 +374,26 @@ class ClusterManager():
                     {
                         'ResourceType': 'security-group',
                         'Tags': [
-                            {
-                                'Key': 'Name',
-                                'Value': sgName
-                            },
-                            {
-                                'Key': 'CreatedBy',
-                                'Value': createdBy
-                            },
-                            {
-                                'Key': 'CreatedAt',
-                                'Value': createdAt
-                            },
-                            {
-                                'Key': 'CreatedWith',
-                                'Value': 'Lightspin ECE'
-                            },
+                            {'Key': 'Name', 'Value': sgName},
+                            {'Key': 'CreatedBy', 'Value': createdBy},
+                            {'Key': 'CreatedAt', 'Value': createdAt},
+                            {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
                             # This tag is required per AWS Docs
                             # One, and only one, of the security groups associated to your nodes should have the following tag applied: For more information about tagging, see Working with tags using the console. kubernetes.io/cluster/cluster-name: owned
-                            {
-                                'Key': f'kubernetes.io/cluster/{cluster_name}',
-                                'Value': 'owned'
-                            }
-                        ]
+                            {'Key': f'kubernetes.io/cluster/{cluster_name}', 'Value': 'owned'},
+                        ],
                     }
-                ]
+                ],
             )
             secGroupId = str(r['GroupId'])
 
-            sgCache = {
-                'ClusterSecurityGroupId': secGroupId
-            }
+            sgCache = {'ClusterSecurityGroupId': secGroupId}
             cache.append(sgCache)
 
             print(f'Added {sgName} ID {secGroupId} to Cache')
-            print(f'Authorizing ingress for Ports {defaultPortSet} for CIDRS {allVpcCidrs} for {sgName}')
+            print(
+                f'Authorizing ingress for Ports {defaultPortSet} for CIDRS {allVpcCidrs} for {sgName}'
+            )
 
             # Now start adding Inbound Rules per CIDR and per Port
             # Add conditional logic for port 53 (DNS) to create both TCP and UDP Rules
@@ -471,9 +410,9 @@ class ClusterManager():
                                     'IpRanges': [
                                         {
                                             'CidrIp': cidr,
-                                            'Description': f'Allow tcp {port} to {cidr}'
+                                            'Description': f'Allow tcp {port} to {cidr}',
                                         }
-                                    ]
+                                    ],
                                 },
                                 {
                                     'FromPort': int(port),
@@ -482,34 +421,22 @@ class ClusterManager():
                                     'IpRanges': [
                                         {
                                             'CidrIp': cidr,
-                                            'Description': f'Allow udp {port} to {cidr}'
+                                            'Description': f'Allow udp {port} to {cidr}',
                                         }
-                                    ]
-                                }
+                                    ],
+                                },
                             ],
                             TagSpecifications=[
                                 {
                                     'ResourceType': 'security-group-rule',
                                     'Tags': [
-                                        {
-                                            'Key': 'Name',
-                                            'Value': f'{sgName}{cidr}{port}'
-                                        },
-                                        {
-                                            'Key': 'CreatedBy',
-                                            'Value': createdBy
-                                        },
-                                        {
-                                            'Key': 'CreatedAt',
-                                            'Value': createdAt
-                                        },
-                                        {
-                                            'Key': 'CreatedWith',
-                                            'Value': 'Lightspin ECE'
-                                        }
-                                    ]
+                                        {'Key': 'Name', 'Value': f'{sgName}{cidr}{port}'},
+                                        {'Key': 'CreatedBy', 'Value': createdBy},
+                                        {'Key': 'CreatedAt', 'Value': createdAt},
+                                        {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                                    ],
                                 }
-                            ]
+                            ],
                         )
                     else:
                         ec2.authorize_security_group_ingress(
@@ -522,34 +449,22 @@ class ClusterManager():
                                     'IpRanges': [
                                         {
                                             'CidrIp': cidr,
-                                            'Description': f'Allow tcp {port} to {cidr}'
+                                            'Description': f'Allow tcp {port} to {cidr}',
                                         }
-                                    ]
+                                    ],
                                 }
                             ],
                             TagSpecifications=[
                                 {
                                     'ResourceType': 'security-group-rule',
                                     'Tags': [
-                                        {
-                                            'Key': 'Name',
-                                            'Value': f'{sgName}{cidr}{port}'
-                                        },
-                                        {
-                                            'Key': 'CreatedBy',
-                                            'Value': createdBy
-                                        },
-                                        {
-                                            'Key': 'CreatedAt',
-                                            'Value': createdAt
-                                        },
-                                        {
-                                            'Key': 'CreatedWith',
-                                            'Value': 'Lightspin ECE'
-                                        }
-                                    ]
+                                        {'Key': 'Name', 'Value': f'{sgName}{cidr}{port}'},
+                                        {'Key': 'CreatedBy', 'Value': createdBy},
+                                        {'Key': 'CreatedAt', 'Value': createdAt},
+                                        {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                                    ],
                                 }
-                            ]
+                            ],
                         )
 
             # Adding inbound rules per Port for the Security Group itself (talk to self for Node-Cluster Comms)
@@ -565,9 +480,9 @@ class ClusterManager():
                                 'UserIdGroupPairs': [
                                     {
                                         'Description': f'Allow tcp {port} to {secGroupId}',
-                                        'GroupId': secGroupId
+                                        'GroupId': secGroupId,
                                     }
-                                ]
+                                ],
                             },
                             {
                                 'FromPort': int(port),
@@ -576,34 +491,22 @@ class ClusterManager():
                                 'UserIdGroupPairs': [
                                     {
                                         'Description': f'Allow udp {port} to {secGroupId}',
-                                        'GroupId': secGroupId
+                                        'GroupId': secGroupId,
                                     }
-                                ]
-                            }
+                                ],
+                            },
                         ],
                         TagSpecifications=[
                             {
                                 'ResourceType': 'security-group-rule',
                                 'Tags': [
-                                    {
-                                        'Key': 'Name',
-                                        'Value': f'{sgName}{secGroupId}{port}'
-                                    },
-                                    {
-                                        'Key': 'CreatedBy',
-                                        'Value': createdBy
-                                    },
-                                    {
-                                        'Key': 'CreatedAt',
-                                        'Value': createdAt
-                                    },
-                                    {
-                                        'Key': 'CreatedWith',
-                                        'Value': 'Lightspin ECE'
-                                    }
-                                ]
+                                    {'Key': 'Name', 'Value': f'{sgName}{secGroupId}{port}'},
+                                    {'Key': 'CreatedBy', 'Value': createdBy},
+                                    {'Key': 'CreatedAt', 'Value': createdAt},
+                                    {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                                ],
                             }
-                        ]
+                        ],
                     )
                 else:
                     ec2.authorize_security_group_ingress(
@@ -612,38 +515,26 @@ class ClusterManager():
                             {
                                 'FromPort': int(port),
                                 'ToPort': int(port),
-                                'IpProtocol': 'tcp',                            
+                                'IpProtocol': 'tcp',
                                 'UserIdGroupPairs': [
                                     {
                                         'Description': f'Allow tcp {port} to {secGroupId}',
-                                        'GroupId': secGroupId
+                                        'GroupId': secGroupId,
                                     }
-                                ]
+                                ],
                             }
                         ],
                         TagSpecifications=[
                             {
                                 'ResourceType': 'security-group-rule',
                                 'Tags': [
-                                    {
-                                        'Key': 'Name',
-                                        'Value': f'{sgName}{secGroupId}{port}'
-                                    },
-                                    {
-                                        'Key': 'CreatedBy',
-                                        'Value': createdBy
-                                    },
-                                    {
-                                        'Key': 'CreatedAt',
-                                        'Value': createdAt
-                                    },
-                                    {
-                                        'Key': 'CreatedWith',
-                                        'Value': 'Lightspin ECE'
-                                    }
-                                ]
+                                    {'Key': 'Name', 'Value': f'{sgName}{secGroupId}{port}'},
+                                    {'Key': 'CreatedBy', 'Value': createdBy},
+                                    {'Key': 'CreatedAt', 'Value': createdAt},
+                                    {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                                ],
                             }
-                        ]
+                        ],
                     )
 
             # Adding TCP 443 (HTTPS) from the internet which is required for patching and agent communications
@@ -655,36 +546,21 @@ class ClusterManager():
                         'ToPort': 443,
                         'IpProtocol': 'tcp',
                         'IpRanges': [
-                            {
-                                'CidrIp': '0.0.0.0/0',
-                                'Description': f'Allow tcp 443 to Internet'
-                            }
-                        ]
+                            {'CidrIp': '0.0.0.0/0', 'Description': f'Allow tcp 443 to Internet'}
+                        ],
                     }
                 ],
                 TagSpecifications=[
                     {
                         'ResourceType': 'security-group-rule',
                         'Tags': [
-                            {
-                                'Key': 'Name',
-                                'Value': f'{sgName}Internet{port}'
-                            },
-                            {
-                                'Key': 'CreatedBy',
-                                'Value': createdBy
-                            },
-                            {
-                                'Key': 'CreatedAt',
-                                'Value': createdAt
-                            },
-                            {
-                                'Key': 'CreatedWith',
-                                'Value': 'Lightspin ECE'
-                            }
-                        ]
+                            {'Key': 'Name', 'Value': f'{sgName}Internet{port}'},
+                            {'Key': 'CreatedBy', 'Value': createdBy},
+                            {'Key': 'CreatedAt', 'Value': createdAt},
+                            {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                        ],
                     }
-                ]
+                ],
             )
         except botocore.exceptions.ClientError as error:
             print(f'Error encountered: {error}')
@@ -719,23 +595,11 @@ class ClusterManager():
                 KeySpec='SYMMETRIC_DEFAULT',
                 Origin='AWS_KMS',
                 Tags=[
-                    {
-                        'TagKey': 'Name',
-                        'TagValue': f'{cluster_name}-EKS-CMK'
-                    },
-                    {
-                        'TagKey': 'CreatedBy',
-                        'TagValue': createdBy
-                    },
-                    {
-                        'TagKey': 'CreatedAt',
-                        'TagValue': createdAt
-                    },
-                    {
-                        'TagKey': 'CreatedWith',
-                        'TagValue': 'Lightspin ECE'
-                    }
-                ]
+                    {'TagKey': 'Name', 'TagValue': f'{cluster_name}-EKS-CMK'},
+                    {'TagKey': 'CreatedBy', 'TagValue': createdBy},
+                    {'TagKey': 'CreatedAt', 'TagValue': createdAt},
+                    {'TagKey': 'CreatedWith', 'TagValue': 'Lightspin ECE'},
+                ],
             )['KeyMetadata']['Arn']
         except KeyError as ke:
             print(f'Error encountered: {ke}')
@@ -748,8 +612,10 @@ class ClusterManager():
             RollbackManager.rollback_from_cache(cache=cache)
 
         return kmsKeyArn
-    
-    def create_cluster(cluster_name, kubernetes_version, cluster_role_name, subnet_ids, vpc_id, additional_ports):
+
+    def create_cluster(
+        cluster_name, kubernetes_version, cluster_role_name, subnet_ids, vpc_id, additional_ports
+    ):
         '''
         This function uses the EKS Boto3 Client to create a cluster, taking inputs from main.py to determing naming & Encryption
         '''
@@ -764,7 +630,9 @@ class ClusterManager():
         clusterRoleArn = ClusterManager.create_cluster_svc_role(cluster_role_name)
 
         # Call `cluster_security_group_factory` to create or re-use an EKS cluster security group that allows minimum necessary comms intra-VPC
-        securityGroupId = ClusterManager.cluster_security_group_factory(cluster_name, vpc_id, additional_ports)
+        securityGroupId = ClusterManager.cluster_security_group_factory(
+            cluster_name, vpc_id, additional_ports
+        )
 
         # Call `encryption_key_factory` to create a KMS Key ARN. Simple! (We'll add the Key Policy later)
         kmsKeyArn = ClusterManager.encryption_key_factory(cluster_name)
@@ -779,33 +647,30 @@ class ClusterManager():
                     'subnetIds': subnet_ids,
                     'securityGroupIds': [securityGroupId],
                     'endpointPublicAccess': False,
-                    'endpointPrivateAccess': True
+                    'endpointPrivateAccess': True,
                 },
                 logging={
                     'clusterLogging': [
-                        {   
+                        {
                             # all Logging types are enabled here
-                            'types': ['api','audit','authenticator','controllerManager','scheduler'],
-                            'enabled': True
+                            'types': [
+                                'api',
+                                'audit',
+                                'authenticator',
+                                'controllerManager',
+                                'scheduler',
+                            ],
+                            'enabled': True,
                         }
                     ]
                 },
-                encryptionConfig=[
-                    {
-                        'resources': [
-                            'secrets'
-                        ],
-                        'provider': {
-                            'keyArn': kmsKeyArn
-                        }
-                    }
-                ],
+                encryptionConfig=[{'resources': ['secrets'], 'provider': {'keyArn': kmsKeyArn}}],
                 tags={
                     'Name': cluster_name,
                     'CreatedBy': createdBy,
                     'CreatedAt': createdAt,
-                    'CreatedWith': 'Lightspin ECE'
-                }
+                    'CreatedWith': 'Lightspin ECE',
+                },
             )
 
             # Establish provided EKS Waiter() for cluster to come up
@@ -814,13 +679,7 @@ class ClusterManager():
 
             waiter = eks.get_waiter('cluster_active')
 
-            waiter.wait(
-                name=cluster_name,
-                WaiterConfig={
-                    'Delay': 30,
-                    'MaxAttempts': 40
-                }
-            )
+            waiter.wait(name=cluster_name, WaiterConfig={'Delay': 30, 'MaxAttempts': 40})
 
             finalClusterName = str(r['cluster']['name'])
 
@@ -855,7 +714,9 @@ class ClusterManager():
         '''
         eks = boto3.client('eks')
 
-        print(f'Retrieving Certificate Authority and API Server URL information for bootstrap script')
+        print(
+            f'Retrieving Certificate Authority and API Server URL information for bootstrap script'
+        )
 
         # DescribeCluster and pull necessary values to set as env vars within the bootstrap
         c = eks.describe_cluster(name=cluster_name)
@@ -945,7 +806,20 @@ class ClusterManager():
 
         return userData
 
-    def create_launch_template(cluster_name, kubernetes_version, ami_id, bucket_name, launch_template_name, kms_key_arn, securityGroupId, ebs_volume_size, instance_type, mde_on_nodes, ami_os, ami_architecture):
+    def create_launch_template(
+        cluster_name,
+        kubernetes_version,
+        ami_id,
+        bucket_name,
+        launch_template_name,
+        kms_key_arn,
+        securityGroupId,
+        ebs_volume_size,
+        instance_type,
+        mde_on_nodes,
+        ami_os,
+        ami_architecture,
+    ):
         '''
         This function creates an EC2 Launch Template using encryption and AMI data supplied from main.py and passes it to the `builder` function
         where final EKS Nodegroup creation takes place
@@ -958,16 +832,20 @@ class ClusterManager():
         createdAt = str(datetime.utcnow())
 
         # Pull latest AMI ID for EKS-optimized Ubuntu 20.04LTS for specified K8s Version in main.py
-        amiId = ClusterManager.get_latest_eks_optimized_ubuntu(kubernetes_version, ami_id, ami_os, ami_architecture)
+        amiId = ClusterManager.get_latest_eks_optimized_ubuntu(
+            kubernetes_version, ami_id, ami_os, ami_architecture
+        )
 
         # Retrieve Base64 metadata from bootstrap generation function - this will download and install MDE (MDATP) from files in the S3 bucket specified in main.py if --mde_on_nodes is true. Will use ami_os arguements to create different UserData as well
-        userData = ClusterManager.generate_nodegroup_bootstrap(bucket_name, cluster_name, mde_on_nodes, ami_os)
+        userData = ClusterManager.generate_nodegroup_bootstrap(
+            bucket_name, cluster_name, mde_on_nodes, ami_os
+        )
 
         # For IMDSv2 - keeping this outside for eventual modification of hop limits?
         metadataOptions = {
             'HttpTokens': 'required',
             'HttpPutResponseHopLimit': 2,
-            'HttpEndpoint': 'enabled'
+            'HttpEndpoint': 'enabled',
         }
 
         try:
@@ -985,8 +863,8 @@ class ClusterManager():
                                 'DeleteOnTermination': True,
                                 'KmsKeyId': kms_key_arn,
                                 'VolumeSize': int(ebs_volume_size),
-                                'VolumeType': 'gp2'
-                            }
+                                'VolumeType': 'gp2',
+                            },
                         }
                     ],
                     'ImageId': amiId,
@@ -998,47 +876,23 @@ class ClusterManager():
                         {
                             'ResourceType': 'instance',
                             'Tags': [
-                                {
-                                    'Key': 'Name',
-                                    'Value': str(f'{launch_template_name}Node')
-                                },
-                                {
-                                    'Key': 'CreatedBy',
-                                    'Value': createdBy
-                                },
-                                {
-                                    'Key': 'CreatedAt',
-                                    'Value': createdAt
-                                },
-                                {
-                                    'Key': 'CreatedWith',
-                                    'Value': 'Lightspin ECE'
-                                }
-                            ]
+                                {'Key': 'Name', 'Value': str(f'{launch_template_name}Node')},
+                                {'Key': 'CreatedBy', 'Value': createdBy},
+                                {'Key': 'CreatedAt', 'Value': createdAt},
+                                {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                            ],
                         },
                         {
                             'ResourceType': 'volume',
                             'Tags': [
-                                {
-                                    'Key': 'Name',
-                                    'Value': str(f'{launch_template_name}Node')
-                                },
-                                {
-                                    'Key': 'CreatedBy',
-                                    'Value': createdBy
-                                },
-                                {
-                                    'Key': 'CreatedAt',
-                                    'Value': createdAt
-                                },
-                                {
-                                    'Key': 'CreatedWith',
-                                    'Value': 'Lightspin ECE'
-                                }
-                            ]
-                        }
-                    ]
-                }
+                                {'Key': 'Name', 'Value': str(f'{launch_template_name}Node')},
+                                {'Key': 'CreatedBy', 'Value': createdBy},
+                                {'Key': 'CreatedAt', 'Value': createdAt},
+                                {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                            ],
+                        },
+                    ],
+                },
             )
 
             launchTemplateId = str(r['LaunchTemplate']['LaunchTemplateId'])
@@ -1050,8 +904,32 @@ class ClusterManager():
             RollbackManager.rollback_from_cache(cache=cache)
 
         return launchTemplateId
-    
-    def builder(kubernetes_version, bucket_name, ebs_volume_size, ami_id, instance_type, cluster_name, cluster_role_name, nodegroup_name, nodegroup_role_name, launch_template_name, vpc_id, subnet_ids, node_count, mde_on_nodes, additional_ports, falco_bool, falco_sidekick_destination_type, falco_sidekick_destination, ami_os, ami_architecture, datadog_api_key, datadog_bool, addtl_auth_principals):
+
+    def builder(
+        kubernetes_version,
+        bucket_name,
+        ebs_volume_size,
+        ami_id,
+        instance_type,
+        cluster_name,
+        cluster_role_name,
+        nodegroup_name,
+        nodegroup_role_name,
+        launch_template_name,
+        vpc_id,
+        subnet_ids,
+        node_count,
+        mde_on_nodes,
+        additional_ports,
+        falco_bool,
+        falco_sidekick_destination_type,
+        falco_sidekick_destination,
+        ami_os,
+        ami_architecture,
+        datadog_api_key,
+        datadog_bool,
+        addtl_auth_principals,
+    ):
         '''
         This function is the 'brain' that controls creation and calls the required functions to build infrastructure and services (EKS, EC2, IAM).
         This function also stores all required arguments into cache to facilitate rollbacks upon errors
@@ -1064,7 +942,7 @@ class ClusterManager():
             'ClusterRoleName': cluster_role_name,
             'NodegroupName': nodegroup_name,
             'NodegroupRoleName': nodegroup_role_name,
-            'LaunchTemplateName': launch_template_name
+            'LaunchTemplateName': launch_template_name,
         }
         cache.append(cacheDict)
 
@@ -1081,7 +959,14 @@ class ClusterManager():
 
         # Create an EKS Cluster by calling `create_cluster` - this will take the longest, and if it fails, then other infrastructure won't be created
         # the positional selectors are for when you return multiple values, they are bundled in a tuple, and have to be accessed in the order they're provided
-        callClusterManager = ClusterManager.create_cluster(cluster_name, kubernetes_version, cluster_role_name, subnet_ids, vpc_id, additional_ports)
+        callClusterManager = ClusterManager.create_cluster(
+            cluster_name,
+            kubernetes_version,
+            cluster_role_name,
+            subnet_ids,
+            vpc_id,
+            additional_ports,
+        )
         clusterName = callClusterManager[0]
         securityGroupId = callClusterManager[1]
         kms_key_arn = callClusterManager[2]
@@ -1089,7 +974,9 @@ class ClusterManager():
 
         # Passes the S3 Bucket name to the `create_managed_nodegroup_role` function which in turn passes it to the `create_managed_nodegroup_s3_policy`
         # function which allows your Nodegroups to pull artifacts from S3 as part of bootstrapping
-        nodegroupRoleArn = ClusterManager.create_managed_nodegroup_role(bucket_name, nodegroup_role_name, mde_on_nodes)
+        nodegroupRoleArn = ClusterManager.create_managed_nodegroup_role(
+            bucket_name, nodegroup_role_name, mde_on_nodes
+        )
 
         # Now we can attach our proper Key Policy to the KMS Key since we now have all Roles ready
 
@@ -1104,7 +991,9 @@ class ClusterManager():
         seshRoleCheck = seshRoleRegex.search(createdBy)
         # On match to Regex do stupid stuff >:(
         if seshRoleCheck:
-            print(f'Your ARN from STS AssumeRole {createdBy} matches a temporary Session ARN, attempting to find your upstream IAM Role')
+            print(
+                f'Your ARN from STS AssumeRole {createdBy} matches a temporary Session ARN, attempting to find your upstream IAM Role'
+            )
             roleNameSplit = createdBy.split('/')[1]
             createdByRoleArn = f'arn:aws:iam::{acctId}:role/{roleNameSplit}'
             print(f'Your Role ARN upstream to your session was determined as {createdByRoleArn}')
@@ -1119,7 +1008,10 @@ class ClusterManager():
             slrRole = str(r['Role']['RoleName'])
             print(f'Created Service-linked Role for Autoscaling called {slrRole}')
         except Exception as e:
-            if str(e) == 'An error occurred (InvalidInput) when calling the CreateServiceLinkedRole operation: Service role name AWSServiceRoleForAutoScaling has been taken in this account, please try a different suffix.':
+            if (
+                str(e)
+                == 'An error occurred (InvalidInput) when calling the CreateServiceLinkedRole operation: Service role name AWSServiceRoleForAutoScaling has been taken in this account, please try a different suffix.'
+            ):
                 pass
             else:
                 print(f'Error encountered: {e}')
@@ -1132,7 +1024,7 @@ class ClusterManager():
             clusterRoleArn,
             nodegroupRoleArn,
             createdByRoleArn,
-            f'arn:aws:iam::{acctId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling'
+            f'arn:aws:iam::{acctId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling',
         ]
 
         # Check if additional AuthZ IAM Principals are even provided. If so, add them to the list if they're not there already
@@ -1142,18 +1034,16 @@ class ClusterManager():
                     kmsAuthZPrincipals.append(arn)
 
         keyPolicyJson = {
-            'Version':'2012-10-17',
-            'Id':'ecekeypolicy',
+            'Version': '2012-10-17',
+            'Id': 'ecekeypolicy',
             'Statement': [
                 # full key usage by whoever creates the key
                 {
                     'Sid': 'Key Creator Admin',
                     'Effect': 'Allow',
-                    'Principal': {
-                        'AWS': createdByRoleArn
-                    },
-                    'Action':'kms:*',
-                    'Resource':'*'
+                    'Principal': {'AWS': createdByRoleArn},
+                    'Action': 'kms:*',
+                    'Resource': '*',
                 },
                 # This allows usage of the key by the Cluster & Nodegroup and aws-managed service principals
                 # Creator is added throughout as well
@@ -1163,38 +1053,28 @@ class ClusterManager():
                     'Effect': 'Allow',
                     'Principal': {
                         'AWS': kmsAuthZPrincipals,
-                        'Service': [
-                            'autoscaling.amazonaws.com',
-                            'ec2.amazonaws.com'
-                        ]
+                        'Service': ['autoscaling.amazonaws.com', 'ec2.amazonaws.com'],
                     },
                     'Action': [
                         'kms:Encrypt',
                         'kms:Decrypt',
                         'kms:ReEncrypt*',
                         'kms:GenerateDataKey*',
-                        'kms:DescribeKey'
+                        'kms:DescribeKey',
                     ],
-                    'Resource': '*'
+                    'Resource': '*',
                 },
                 {
                     'Sid': 'Allow attachment of persistent resources',
                     'Effect': 'Allow',
                     'Principal': {
                         'AWS': kmsAuthZPrincipals,
-                        'Service': [
-                            'autoscaling.amazonaws.com',
-                            'ec2.amazonaws.com'
-                        ]
+                        'Service': ['autoscaling.amazonaws.com', 'ec2.amazonaws.com'],
                     },
-                    'Action': [
-                        'kms:CreateGrant',
-                        'kms:ListGrants',
-                        'kms:RevokeGrant'
-                    ],
-                    'Resource': '*'
-                }
-            ]
+                    'Action': ['kms:CreateGrant', 'kms:ListGrants', 'kms:RevokeGrant'],
+                    'Resource': '*',
+                },
+            ],
         }
 
         # For whatever reason, role propagation is a bit delayed with registration on the KMS Resource-based resource policy side
@@ -1204,9 +1084,7 @@ class ClusterManager():
 
         try:
             kms.put_key_policy(
-                KeyId=kms_key_arn,
-                PolicyName='default',
-                Policy=json.dumps(keyPolicyJson)
+                KeyId=kms_key_arn, PolicyName='default', Policy=json.dumps(keyPolicyJson)
             )
             print(f'Key Policy attached to {kms_key_arn}')
         except KeyError as ke:
@@ -1218,9 +1096,22 @@ class ClusterManager():
         except botocore.exceptions.ClientError as error:
             print(f'Error encountered: {error}')
             RollbackManager.rollback_from_cache(cache=cache)
-        
+
         # Passes various arguements to the `create_launch_template` which returns a Launch Template ID (of the latest version) to pass to the Nodegroup creation payload
-        launchTemplateId = ClusterManager.create_launch_template(cluster_name, kubernetes_version, ami_id, bucket_name, launch_template_name, kms_key_arn, securityGroupId, ebs_volume_size, instance_type, mde_on_nodes, ami_os, ami_architecture)
+        launchTemplateId = ClusterManager.create_launch_template(
+            cluster_name,
+            kubernetes_version,
+            ami_id,
+            bucket_name,
+            launch_template_name,
+            kms_key_arn,
+            securityGroupId,
+            ebs_volume_size,
+            instance_type,
+            mde_on_nodes,
+            ami_os,
+            ami_architecture,
+        )
 
         print(f'Creating Nodegroup {nodegroup_name} for Cluster {clusterName}')
 
@@ -1232,20 +1123,18 @@ class ClusterManager():
                 scalingConfig={
                     'minSize': int(node_count),
                     'maxSize': int(node_count) * 2,
-                    'desiredSize': int(node_count)
+                    'desiredSize': int(node_count),
                 },
                 nodeRole=nodegroupRoleArn,
                 subnets=subnet_ids,
-                launchTemplate={
-                    'id': launchTemplateId
-                },
+                launchTemplate={'id': launchTemplateId},
                 capacityType='ON_DEMAND',
                 tags={
                     'Name': nodegroup_name,
                     'CreatedBy': createdBy,
                     'CreatedAt': createdAt,
-                    'CreatedWith': 'Lightspin ECE'
-                }
+                    'CreatedWith': 'Lightspin ECE',
+                },
             )
 
             # Await Nodegroups to come online
@@ -1256,10 +1145,7 @@ class ClusterManager():
             waiter.wait(
                 clusterName=clusterName,
                 nodegroupName=nodegroup_name,
-                WaiterConfig={
-                    'Delay': 30,
-                    'MaxAttempts': 80
-                }
+                WaiterConfig={'Delay': 30, 'MaxAttempts': 80},
             )
         except botocore.exceptions.ClientError as error:
             print(f'Error encountered: {error}')
@@ -1276,7 +1162,7 @@ class ClusterManager():
 
         # Setup first time cluster connection with AWS CLI
         updateKubeconfigCmd = f'aws eks update-kubeconfig --region {awsRegion} --name {clusterName}'
-        updateKubeconfigProc = subprocess.run(updateKubeconfigCmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        updateKubeconfigProc = subprocess.run(updateKubeconfigCmd, shell=True, capture_output=True)
         print(updateKubeconfigProc.stdout.decode('utf-8'))
 
         # If additional principals are required to be authorized, attempt to do so
@@ -1285,12 +1171,12 @@ class ClusterManager():
                 # Split out the name part of the Role
                 addtlRoleName = str(arn.split('/')[1])
                 # Create a patch object to add into
-                newAuthZScript=f'''ROLE="    - rolearn: {arn}\\n      username: {addtlRoleName}\\n      groups:\\n        - system:masters"
-                kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{{print;print \\"$ROLE\\";next}}1" > /tmp/aws-auth-patch.yml
+                newAuthZScript = f'''ROLE="    - rolearn: {arn}\\n      username: {addtlRoleName}\\n      groups:\\n        - system:masters"
+                kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \\|/{{print;print \\"$ROLE\\";next}}1" > /tmp/aws-auth-patch.yml
                 kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch.yml)"
                 '''
 
-                newAuthZScriptProc = subprocess.run(newAuthZScript, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                newAuthZScriptProc = subprocess.run(newAuthZScript, shell=True, capture_output=True)
                 print(newAuthZScriptProc.stdout.decode('utf-8'))
 
         '''
@@ -1298,26 +1184,27 @@ class ClusterManager():
         '''
         if falco_bool == 'True':
             FalcoSetup.falco_initialization(
-                cluster_name=clusterName, 
+                cluster_name=clusterName,
                 falco_mode='Create',
-                falco_sidekick_destination_type=falco_sidekick_destination_type, 
+                falco_sidekick_destination_type=falco_sidekick_destination_type,
                 falco_sidekick_destination=falco_sidekick_destination,
-                datadog_api_key=datadog_api_key
+                datadog_api_key=datadog_api_key,
             )
         '''
         Send a call into plugins.ECEDatadog
         '''
         if datadog_bool == 'True':
             DatadogSetup.initialization(
-                cluster_name=clusterName, 
-                datadog_mode='Create',
-                datadog_api_key=datadog_api_key
+                cluster_name=clusterName, datadog_mode='Create', datadog_api_key=datadog_api_key
             )
+
+
 '''
 This Class handles all update tasks to the Clusters, such as version bumps to latest Kubenertes Versions
 '''
-class UpdateManager():
-    
+
+
+class UpdateManager:
     def update_kubernetes_version(cluster_name, nodegroup_name, kubernetes_version):
         '''
         This function attempts to update existing Cluster and Nodegroup to a specified Kubernetes Version by invoking
@@ -1330,10 +1217,14 @@ class UpdateManager():
         try:
             existingClusterVersion = eks.describe_cluster(name=cluster_name)['cluster']['version']
             if existingClusterVersion == kubernetes_version:
-                print(f'EKS Cluster {cluster_name} is already at Kubernetes version {kubernetes_version}! Aborting')
+                print(
+                    f'EKS Cluster {cluster_name} is already at Kubernetes version {kubernetes_version}! Aborting'
+                )
                 sys.exit(2)
             else:
-                print(f'EKS Cluster {cluster_name} is viable to update from Kubernetes version {existingClusterVersion} to {kubernetes_version}')
+                print(
+                    f'EKS Cluster {cluster_name} is viable to update from Kubernetes version {existingClusterVersion} to {kubernetes_version}'
+                )
         except botocore.exceptions.ClientError as error:
             # If we have an 'EntityAlreadyExists' error it means a Role of the same name exists, we can try to use it instead
             if error.response['Error']['Code'] == 'ResourceNotFoundException':
@@ -1344,22 +1235,32 @@ class UpdateManager():
 
         # Lookup EKS Nodegroup to see if specified K8s version from main.py matches, if so exit
         try:
-            existingNodegroupVersion = eks.describe_cluster(name=cluster_name,nodegroupName=nodegroup_name)['nodegroup']['version']
+            existingNodegroupVersion = eks.describe_cluster(
+                name=cluster_name, nodegroupName=nodegroup_name
+            )['nodegroup']['version']
 
             if existingNodegroupVersion == kubernetes_version:
-                print(f'EKS Nodegroup {nodegroup_name} in Cluster {cluster_name} is already at Kubernetes version {kubernetes_version}! Aborting')
+                print(
+                    f'EKS Nodegroup {nodegroup_name} in Cluster {cluster_name} is already at Kubernetes version {kubernetes_version}! Aborting'
+                )
                 sys.exit(2)
             else:
-                print(f'EKS Nodegroup {nodegroup_name} in Cluster {cluster_name} is viable to update from Kubernetes version {existingNodegroupVersion} to {kubernetes_version}')
+                print(
+                    f'EKS Nodegroup {nodegroup_name} in Cluster {cluster_name} is viable to update from Kubernetes version {existingNodegroupVersion} to {kubernetes_version}'
+                )
         except botocore.exceptions.ClientError as error:
             # If we have an 'EntityAlreadyExists' error it means a Role of the same name exists, we can try to use it instead
             if error.response['Error']['Code'] == 'ResourceNotFoundException':
-                print(f'EKS Nodegroup {nodegroup_name} in Cluster {cluster_name} does not exist! Aborting')
+                print(
+                    f'EKS Nodegroup {nodegroup_name} in Cluster {cluster_name} does not exist! Aborting'
+                )
                 sys.exit(2)
             else:
                 raise error
 
-        UpdateManager.update_nodegroup_kubernetes_version(cluster_name, nodegroup_name, kubernetes_version)
+        UpdateManager.update_nodegroup_kubernetes_version(
+            cluster_name, nodegroup_name, kubernetes_version
+        )
 
         UpdateManager.update_cluster_kubernetes_version(cluster_name, kubernetes_version)
 
@@ -1367,16 +1268,16 @@ class UpdateManager():
         '''
         This function carries out the update and waiter for EKS Nodegroup K8s version bumps
         '''
-        print(f'Updating Kubernetes version for EKS Nodegroup {nodegroup_name} in EKS Cluster {cluster_name}')
+        print(
+            f'Updating Kubernetes version for EKS Nodegroup {nodegroup_name} in EKS Cluster {cluster_name}'
+        )
 
         eks = boto3.client('eks')
 
         # Update the Nodegroup K8s version and parse the EKS Update ID for later use
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/eks.html#EKS.Client.update_nodegroup_version
         r = eks.update_nodegroup_version(
-            clusterName=cluster_name,
-            nodegroupName=nodegroup_name,
-            version=kubernetes_version
+            clusterName=cluster_name, nodegroupName=nodegroup_name, version=kubernetes_version
         )
         updateId = str(r['update']['id'])
 
@@ -1386,18 +1287,20 @@ class UpdateManager():
         # Break the loop on Success, continue on 'InProgress', and exit code 2 on failures or cancellations
         while True:
             d = eks.describe_update(
-                name=cluster_name,
-                updateId=updateId,
-                nodegroupName=nodegroup_name
+                name=cluster_name, updateId=updateId, nodegroupName=nodegroup_name
             )
             updateStatus = str(d['update']['status'])
             # if/else logic time
             if updateStatus == 'Successful':
-                print(f'Nodegroup {nodegroup_name} in Cluster {cluster_name} has been successfully updated.')
+                print(
+                    f'Nodegroup {nodegroup_name} in Cluster {cluster_name} has been successfully updated.'
+                )
                 break
             elif updateStatus == 'Failed' or 'Cancelled':
                 errorMessage = str(d['update']['errors'])
-                print(f'Nodegroup {nodegroup_name} in Cluster {cluster_name} update has been cancelled or has failed!')
+                print(
+                    f'Nodegroup {nodegroup_name} in Cluster {cluster_name} update has been cancelled or has failed!'
+                )
                 print(f'Error message: {errorMessage}')
                 sys.exit(2)
             else:
@@ -1417,10 +1320,7 @@ class UpdateManager():
 
         # Update the Nodegroup K8s version and parse the EKS Update ID for later use
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/eks.html#EKS.Client.update_nodegroup_version
-        r = eks.update_nodegroup_version(
-            clusterName=cluster_name,
-            version=kubernetes_version
-        )
+        r = eks.update_nodegroup_version(clusterName=cluster_name, version=kubernetes_version)
         updateId = str(r['update']['id'])
 
         print(f'Monitoring EKS Update ID {updateId} for failure or success state.')
@@ -1428,10 +1328,7 @@ class UpdateManager():
         # Use a `while True` loop and 15 second sleeps to watch the update progress of the cluster
         # Break the loop on Success, continue on 'InProgress', and exit code 2 on failures or cancellations
         while True:
-            d = eks.describe_update(
-                name=cluster_name,
-                updateId=updateId
-            )
+            d = eks.describe_update(name=cluster_name, updateId=updateId)
             updateStatus = str(d['update']['status'])
             # if/else logic time
             if updateStatus == 'Successful':
@@ -1449,13 +1346,17 @@ class UpdateManager():
                 time.sleep(15)
                 continue
 
+
 '''
 Despite it's name, this Class contains methods to conduct emergency deletions (rollback) from Cache as well as normal deletions from main.py commands
 this is purely for Create mode, other Classes may have their own self-contained rollback mechanism
 '''
-class RollbackManager():
 
-    def scheduled_deletion(nodegroup_name, cluster_name, cluster_role_name, nodegroup_role_name, launch_template_name):
+
+class RollbackManager:
+    def scheduled_deletion(
+        nodegroup_name, cluster_name, cluster_role_name, nodegroup_role_name, launch_template_name
+    ):
         '''
         This function performs a graceful, scheduled deletion of all resources - or attempts to at least
         '''
@@ -1465,48 +1366,40 @@ class RollbackManager():
 
         # Retrieve the Security Groups from the Cluster to delete, as they are not provided as arguments and cannot be guessed (ID's and all that...)
         sgList = []
-        for sg in eks.describe_cluster(name=cluster_name)['cluster']['resourcesVpcConfig']['securityGroupIds']:
+        for sg in eks.describe_cluster(name=cluster_name)['cluster']['resourcesVpcConfig'][
+            'securityGroupIds'
+        ]:
             sgList.append(sg)
 
         # First, attempt to delete Nodegroup
-        RollbackManager.delete_nodegroup(
-            nodegroup_name=nodegroup_name,
-            cluster_name=cluster_name
-        )
+        RollbackManager.delete_nodegroup(nodegroup_name=nodegroup_name, cluster_name=cluster_name)
 
         # Then, try to find the Cluster KMS Key and attempt to delete it
         try:
-            kmsKeyArn= eks.describe_cluster(name=cluster_name)['cluster']['encryptionConfig'][0]['provider']['keyArn']
+            kmsKeyArn = eks.describe_cluster(name=cluster_name)['cluster']['encryptionConfig'][0][
+                'provider'
+            ]['keyArn']
         except Exception:
             kmsKeyArn = None
-        
+
         if kmsKeyArn != None:
-            RollbackManager.delete_kms_key(
-                kms_key_arn=kmsKeyArn
-            )
+            RollbackManager.delete_kms_key(kms_key_arn=kmsKeyArn)
 
         # Next, attempt to delete Cluster
-        RollbackManager.delete_cluster(
-            cluster_name=cluster_name
-        )
+        RollbackManager.delete_cluster(cluster_name=cluster_name)
 
         # Next, attempt to delete all related IAM
         RollbackManager.delete_eks_iam(
-            cluster_role_name=cluster_role_name,
-            nodegroup_role_name=nodegroup_role_name
+            cluster_role_name=cluster_role_name, nodegroup_role_name=nodegroup_role_name
         )
 
         # Next, attempt to delete the EC2 Launch Template
-        RollbackManager.delete_launch_template(
-            launch_template_name=launch_template_name
-        )
+        RollbackManager.delete_launch_template(launch_template_name=launch_template_name)
 
         # Finally, loop the retrieved SGs and then delete them
         for sg in sgList:
             print(f'Trying to delete EC2 Security Group {sg}')
-            RollbackManager.delete_security_groups(
-                cluster_security_group_id=sg
-            )
+            RollbackManager.delete_security_groups(cluster_security_group_id=sg)
 
         print(f'Deletion complete. Confirm resource deletion in Console in case of errors')
 
@@ -1528,42 +1421,32 @@ class RollbackManager():
         clusterSgId = str(cache[1]['ClusterSecurityGroupId'])
 
         # First, attempt to delete Nodegroup
-        RollbackManager.delete_nodegroup(
-            nodegroup_name=nodegroupName,
-            cluster_name=clusterName
-        )
+        RollbackManager.delete_nodegroup(nodegroup_name=nodegroupName, cluster_name=clusterName)
 
         # Then, try to find the Cluster KMS Key and attempt to delete it
         try:
-            kmsKeyArn= eks.describe_cluster(name=clusterName)['cluster']['encryptionConfig'][0]['provider']['keyArn']
+            kmsKeyArn = eks.describe_cluster(name=clusterName)['cluster']['encryptionConfig'][0][
+                'provider'
+            ]['keyArn']
         except Exception:
             kmsKeyArn = None
 
         if kmsKeyArn != None:
-            RollbackManager.delete_kms_key(
-                kms_key_arn=kmsKeyArn
-            )
+            RollbackManager.delete_kms_key(kms_key_arn=kmsKeyArn)
 
         # Next, attempt to delete Cluster
-        RollbackManager.delete_cluster(
-            cluster_name=clusterName
-        )
+        RollbackManager.delete_cluster(cluster_name=clusterName)
 
         # Next, attempt to delete all related IAM
         RollbackManager.delete_eks_iam(
-            cluster_role_name=clusterRoleName,
-            nodegroup_role_name=nodegroupRoleName
+            cluster_role_name=clusterRoleName, nodegroup_role_name=nodegroupRoleName
         )
 
         # Next, attempt to delete the EC2 Launch Template
-        RollbackManager.delete_launch_template(
-            launch_template_name=launchTemplateName
-        )
+        RollbackManager.delete_launch_template(launch_template_name=launchTemplateName)
 
         # Finally, delete the Security Groups
-        RollbackManager.delete_security_groups(
-            cluster_security_group_id=clusterSgId
-        )
+        RollbackManager.delete_security_groups(cluster_security_group_id=clusterSgId)
 
         print(f'Rollback complete. Confirm resource deletion in Console in case of errors')
 
@@ -1579,10 +1462,7 @@ class RollbackManager():
         eks = boto3.client('eks')
 
         try:
-            eks.delete_nodegroup(
-                clusterName=cluster_name,
-                nodegroupName=nodegroup_name
-            )
+            eks.delete_nodegroup(clusterName=cluster_name, nodegroupName=nodegroup_name)
         except botocore.exceptions.ClientError as error:
             print(f'Rollback error encounter {error}')
 
@@ -1595,10 +1475,7 @@ class RollbackManager():
         waiter.wait(
             clusterName=cluster_name,
             nodegroupName=nodegroup_name,
-            WaiterConfig={
-                'Delay': 30,
-                'MaxAttempts': 40
-            }
+            WaiterConfig={'Delay': 30, 'MaxAttempts': 40},
         )
 
         print(f'EKS Nodegroups rolled back.')
@@ -1614,9 +1491,7 @@ class RollbackManager():
         eks = boto3.client('eks')
 
         try:
-            eks.delete_cluster(
-                name=cluster_name
-            )
+            eks.delete_cluster(name=cluster_name)
         except botocore.exceptions.ClientError as error:
             print(f'Rollback error encounter {error}')
 
@@ -1626,13 +1501,7 @@ class RollbackManager():
 
         waiter = eks.get_waiter('cluster_deleted')
 
-        waiter.wait(
-            name=cluster_name,
-            WaiterConfig={
-                'Delay': 30,
-                'MaxAttempts': 123
-            }
-        )
+        waiter.wait(name=cluster_name, WaiterConfig={'Delay': 30, 'MaxAttempts': 123})
 
         print(f'EKS Clusters rolled back.')
 
@@ -1642,7 +1511,9 @@ class RollbackManager():
         '''
         This function attempts to delete all related IAM entities for EKS (Cluster roles, Nodegroup roles, Nodegroup policies)
         '''
-        print(f'Attempting to delete various IAM entities. IAM Roles {cluster_role_name} and {nodegroup_role_name} and IAM Policy {nodegroup_role_name}Policy.')
+        print(
+            f'Attempting to delete various IAM entities. IAM Roles {cluster_role_name} and {nodegroup_role_name} and IAM Policy {nodegroup_role_name}Policy.'
+        )
 
         iam = boto3.client('iam')
         sts = boto3.client('sts')
@@ -1653,23 +1524,21 @@ class RollbackManager():
 
         # Find and detach all policies from the Cluster Role
         try:
-            for policy in iam.list_attached_role_policies(RoleName=cluster_role_name)['AttachedPolicies']:
+            for policy in iam.list_attached_role_policies(RoleName=cluster_role_name)[
+                'AttachedPolicies'
+            ]:
                 policyArn = str(policy['PolicyArn'])
-                iam.detach_role_policy(
-                    RoleName=cluster_role_name,
-                    PolicyArn=policyArn
-                )
+                iam.detach_role_policy(RoleName=cluster_role_name, PolicyArn=policyArn)
         except botocore.exceptions.ClientError as error:
             print(f'Rollback error encounter {error}')
 
         # Detach all Policies from Nodegroup cluster
         try:
-            for policy in iam.list_attached_role_policies(RoleName=nodegroup_role_name)['AttachedPolicies']:
+            for policy in iam.list_attached_role_policies(RoleName=nodegroup_role_name)[
+                'AttachedPolicies'
+            ]:
                 policyArn = str(policy['PolicyArn'])
-                iam.detach_role_policy(
-                    RoleName=nodegroup_role_name,
-                    PolicyArn=policyArn
-                )
+                iam.detach_role_policy(RoleName=nodegroup_role_name, PolicyArn=policyArn)
         except botocore.exceptions.ClientError as error:
             print(f'Rollback error encounter {error}')
 
@@ -1687,7 +1556,6 @@ class RollbackManager():
             iam.delete_role(RoleName=nodegroup_role_name)
         except botocore.exceptions.ClientError as error:
             print(f'Rollback error encounter {error}')
-        
 
         print(f'IAM Roles and Policies rolled back.')
 
@@ -1705,10 +1573,7 @@ class RollbackManager():
         ec2 = boto3.client('ec2')
 
         try:
-            ec2.delete_launch_template(
-                DryRun=False,
-                LaunchTemplateName=launch_template_name
-            )
+            ec2.delete_launch_template(DryRun=False, LaunchTemplateName=launch_template_name)
         except botocore.exceptions.ClientError as error:
             print(f'Rollback error encounter {error}')
 
@@ -1742,10 +1607,7 @@ class RollbackManager():
         kms = boto3.client('kms')
 
         try:
-            kms.schedule_key_deletion(
-                KeyId=kms_key_arn,
-                PendingWindowInDays=7
-            )
+            kms.schedule_key_deletion(KeyId=kms_key_arn, PendingWindowInDays=7)
         except botocore.exceptions.ClientError as error:
             print(f'Rollback error encounter {error}')
 
