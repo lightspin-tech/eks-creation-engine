@@ -2,7 +2,7 @@
 
 The Amazon Elastic Kubernetes Service (EKS) Creation Engine (ECE) is a Python command-line program created by the Lightspin Office of the CISO to facilitate the creation and enablement of secure EKS Clusters, optionally further assured with continual Kubernetes Security Posture Management (KSPM), Runtime Protection, and Application Performance Monitoring (APM) capabilities.
 
-## What is this :eyes: :eyes: ?? 
+## What is this :eyes: :eyes: ??
 
 As stated above, the ECE is a Python utility to create a fully functioning EKS Cluster, complete with Nodegroups which are built off of EC2 Launch Templates as it was meant for creating EKS Nodegroups with custom AMIs with custom bootstrapping.
 
@@ -72,6 +72,35 @@ We are happy to take contributions from anywhere that will help expand this proj
 - Functionality for adding Nodegroups to existing Clusters.
 - Spot provider & Fargate Profile support for Nodegroups, and an option to not use Nodegroups
 - Create more Plugins for various utilities (e.g., Calico, OPA, NGINX Ingress Controller, etc.)
+
+### Basic Contributing Setup
+
+1. Fork the repository.
+2. Clone your fork and enter the `eks-creation-engine` directory.
+3. Get your Python things Python-y.
+
+```bash
+# Add upstream
+git remote add upstream https://github.com/lightspin-tech/eks-creation-engine.git
+
+# Create virtual env
+pip3 -m venv .env --prompt ece
+
+# Enter virtual env
+source .env/bin/activate
+
+# Install ECE reqs
+pip3 install -r requirements.txt
+
+# Install pre-commit
+pip3 install pre-commit
+
+# Ensure pre-commit runs... pre... commit
+pre-commit install
+
+# Init the pre-commit env and run checks
+pre-commit run -a
+```
 
 ## Contact Us :telephone_receiver: :telephone_receiver:
 

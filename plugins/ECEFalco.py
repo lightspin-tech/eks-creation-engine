@@ -1,36 +1,40 @@
-#This file is part of Lightspin EKS Creation Engine.
-#SPDX-License-Identifier: Apache-2.0
-
-#Licensed to the Apache Software Foundation (ASF) under one
-#or more contributor license agreements.  See the NOTICE file
-#distributed with this work for additional information
-#regarding copyright ownership.  The ASF licenses this file
-#to you under the Apache License, Version 2.0 (the
+# This file is part of Lightspin EKS Creation Engine.
+# SPDX-License-Identifier: Apache-2.0
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
 #'License'); you may not use this file except in compliance
-#with the License.  You may obtain a copy of the License at
-
-#http://www.apache.org/licenses/LICENSE-2.0
-
-#Unless required by applicable law or agreed to in writing,
-#software distributed under the License is distributed on an
+# with the License.  You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
 #'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-#KIND, either express or implied.  See the License for the
-#specific language governing permissions and limitations
-#under the License.
-
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+import json
+import subprocess
 import sys
+from datetime import datetime
+
 import boto3
 import botocore.exceptions
-import json
-from datetime import datetime
-import subprocess
 
 '''
 This Class manages an end-to-end deployment of Falco and FalcoSidekick to EKS using Helm. This class can be called from ClusterManager (if flag is set) or called independently to setup Falco
 '''
-class FalcoSetup():
 
-    def falco_initialization(cluster_name, falco_mode, falco_sidekick_destination_type, falco_sidekick_destination, datadog_api_key):
+
+class FalcoSetup:
+    def falco_initialization(
+        cluster_name,
+        falco_mode,
+        falco_sidekick_destination_type,
+        falco_sidekick_destination,
+        datadog_api_key,
+    ):
         '''
         This function handles configuration of Falco and FalcoSidekick on a Cluster, whether in-line of an ECE Create or ECE SetupFalco `--mode` from main.py
         Depending on the destination configuration and mode, this function will either schedule deletion or creation of additional infrastructure and issue Helm
@@ -51,8 +55,7 @@ class FalcoSetup():
                 # and add them to the static list above if they are not already there
                 for nodegroup in eks.list_nodegroups(clusterName=cluster_name)['nodegroups']:
                     nodeRoleArn = eks.describe_nodegroup(
-                        clusterName=cluster_name,
-                        nodegroupName=nodegroup
+                        clusterName=cluster_name, nodegroupName=nodegroup
                     )['nodegroup']['nodeRole']
                     if nodeRoleArn not in roleArns:
                         roleArns.append(nodeRoleArn)
@@ -65,37 +68,35 @@ class FalcoSetup():
                 topicArn = FalcoSetup.falco_sidekick_sns_iam_generator(
                     cluster_name=cluster_name,
                     falco_sidekick_destination=falco_sidekick_destination,
-                    role_arns=roleArns
+                    role_arns=roleArns,
                 )
 
                 # Install Falco
                 # All commands for FalcoSidekick come from the Helm vars spec in the chart GitHub repo: https://github.com/falcosecurity/charts/tree/master/falcosidekick#configuration
                 falcoHelmCmd = f'helm install falco falcosecurity/falco --set falcosidekick.enabled=true --set falcosidekick.webui.enabled=false --set falcosidekick.config.aws.sns.topicarn={topicArn}'
-                FalcoSetup.install_falco(
-                    falco_install_command=falcoHelmCmd
-                )
+                FalcoSetup.install_falco(falco_install_command=falcoHelmCmd)
             elif falco_sidekick_destination_type == 'Slack':
-                print(f'Configuring Falco and FalcoSidekick to send runtime alerts to Slack Webhook {falco_sidekick_destination}')
-                
+                print(
+                    f'Configuring Falco and FalcoSidekick to send runtime alerts to Slack Webhook {falco_sidekick_destination}'
+                )
+
                 # Install Falco
                 falcoHelmCmd = f'helm install falco falcosecurity/falco --set falcosidekick.enabled=true --set falcosidekick.webui.enabled=false --set falcosidekick.config.slack.webhookurl={falco_sidekick_destination}'
-                FalcoSetup.install_falco(
-                    falco_install_command=falcoHelmCmd
-                )
+                FalcoSetup.install_falco(falco_install_command=falcoHelmCmd)
             elif falco_sidekick_destination_type == 'Teams':
-                print(f'Configuring Falco and FalcoSidekick to send runtime alerts to Teams Webhook {falco_sidekick_destination}')
+                print(
+                    f'Configuring Falco and FalcoSidekick to send runtime alerts to Teams Webhook {falco_sidekick_destination}'
+                )
                 # Install Falco
                 falcoHelmCmd = f'helm install falco falcosecurity/falco --set falcosidekick.enabled=true --set falcosidekick.webui.enabled=false --set falcosidekick.config.teams.webhookurl={falco_sidekick_destination}'
-                FalcoSetup.install_falco(
-                    falco_install_command=falcoHelmCmd
-                )
+                FalcoSetup.install_falco(falco_install_command=falcoHelmCmd)
             elif falco_sidekick_destination_type == 'Datadog':
-                print(f'Configuring Falco and FalcoSidekick to send runtime alerts to Datadog Host {falco_sidekick_destination}')
+                print(
+                    f'Configuring Falco and FalcoSidekick to send runtime alerts to Datadog Host {falco_sidekick_destination}'
+                )
                 # Install Falco
                 falcoHelmCmd = f'helm install falco falcosecurity/falco --set falcosidekick.enabled=true --set falcosidekick.webui.enabled=false --set falcosidekick.config.datadog.host={falco_sidekick_destination} --set falcosidekick.config.datadog.apikey={datadog_api_key}'
-                FalcoSetup.install_falco(
-                    falco_install_command=falcoHelmCmd
-                )
+                FalcoSetup.install_falco(falco_install_command=falcoHelmCmd)
             else:
                 print(f'Unsupported destination type provided, exiting')
                 sys.exit(2)
@@ -116,8 +117,7 @@ class FalcoSetup():
         # If the value for 'falco_sidekick_destination' is None, that means a SNS topic was not provided and needs to be setup
         if falco_sidekick_destination == None:
             topicArn = FalcoSetup.falco_sidekick_sns_creation(
-                cluster_name=cluster_name,
-                role_arns=role_arns    
+                cluster_name=cluster_name, role_arns=role_arns
             )
         else:
             topicArn = falco_sidekick_destination
@@ -139,14 +139,10 @@ class FalcoSetup():
                 {
                     'Sid': 'Snssid',
                     'Effect': 'Allow',
-                    'Action': [
-                        'sns:Publish',
-                        'sns:GetTopicAttributes',
-                        'sns:ListTopics'
-                    ],
-                    'Resource': [topicArn]
+                    'Action': ['sns:Publish', 'sns:GetTopicAttributes', 'sns:ListTopics'],
+                    'Resource': [topicArn],
                 }
-            ]
+            ],
         }
 
         policyName = f'{cluster_name}FalcoSidekick-SNSPublishPolicy'
@@ -158,23 +154,11 @@ class FalcoSetup():
                 PolicyDocument=json.dumps(iamPolicyDoc),
                 Description=f'Allows EKS Cluster {cluster_name} and Nodegroups to send Falco alerts to SNS - Created by Lightspin ECE',
                 Tags=[
-                    {
-                        'Key': 'Name',
-                        'Value': policyName
-                    },
-                    {
-                        'Key': 'CreatedBy',
-                        'Value': createdBy
-                    },
-                    {
-                        'Key': 'CreatedAt',
-                        'Value': createdAt
-                    },
-                    {
-                        'Key': 'CreatedWith',
-                        'Value': 'Lightspin ECE'
-                    }
-                ]
+                    {'Key': 'Name', 'Value': policyName},
+                    {'Key': 'CreatedBy', 'Value': createdBy},
+                    {'Key': 'CreatedAt', 'Value': createdAt},
+                    {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                ],
             )
             policyArn = f'arn:aws:iam::{acctId}:policy/{policyName}'
         except botocore.exceptions.ClientError as error:
@@ -184,10 +168,7 @@ class FalcoSetup():
         for role in roleArns:
             roleName = role.split('/')[1]
             try:
-                iam.attach_role_policy(
-                    RoleName=roleName,
-                    PolicyArn=policyArn
-                )
+                iam.attach_role_policy(RoleName=roleName, PolicyArn=policyArn)
             except botocore.exceptions.ClientError as error:
                 print(f'Error encountered: {error}')
                 FalcoSetup.falco_setup_rollback(cluster_name=cluster_name)
@@ -229,27 +210,13 @@ class FalcoSetup():
         try:
             topicArn = sns.create_topic(
                 Name=topicName,
-                Attributes={
-                    'DisplayName': topicName
-                },
+                Attributes={'DisplayName': topicName},
                 Tags=[
-                    {
-                        'Key': 'Name',
-                        'Value': topicName
-                    },
-                    {
-                        'Key': 'CreatedBy',
-                        'Value': createdBy
-                    },
-                    {
-                        'Key': 'CreatedAt',
-                        'Value': createdAt
-                    },
-                    {
-                        'Key': 'CreatedWith',
-                        'Value': 'Lightspin ECE'
-                    }
-                ]
+                    {'Key': 'Name', 'Value': topicName},
+                    {'Key': 'CreatedBy', 'Value': createdBy},
+                    {'Key': 'CreatedAt', 'Value': createdAt},
+                    {'Key': 'CreatedWith', 'Value': 'Lightspin ECE'},
+                ],
             )['TopicArn']
         except botocore.exceptions.ClientError as error:
             print(f'Error encountered: {error}')
@@ -257,40 +224,32 @@ class FalcoSetup():
 
         # Create a SNS Topic Policy Doc to pass in as an SNS Attribute
         topicPolicyJson = {
-            'Version':'2008-10-17',
-            'Id':'ecepolicy',
-            'Statement':[
+            'Version': '2008-10-17',
+            'Id': 'ecepolicy',
+            'Statement': [
                 {
-                    'Sid':'ecesid-pub',
-                    'Effect':'Allow',
-                    'Principal':{
-                        'AWS': roleArns
-                    },
-                    'Action':['SNS:Publish'],
-                    'Resource': topicArn
+                    'Sid': 'ecesid-pub',
+                    'Effect': 'Allow',
+                    'Principal': {'AWS': roleArns},
+                    'Action': ['SNS:Publish'],
+                    'Resource': topicArn,
                 },
                 {
-                    'Sid':'ecesid-sub',
-                    'Effect':'Allow',
-                    'Principal':{
-                        'AWS':'*'
-                    },
-                    'Action':['SNS:Subscribe'],
+                    'Sid': 'ecesid-sub',
+                    'Effect': 'Allow',
+                    'Principal': {'AWS': '*'},
+                    'Action': ['SNS:Subscribe'],
                     'Resource': topicArn,
-                    'Condition':{
-                        'StringEquals':{
-                            'AWS:SourceOwner': acctId
-                        }
-                    }
-                }
-            ]
+                    'Condition': {'StringEquals': {'AWS:SourceOwner': acctId}},
+                },
+            ],
         }
 
         try:
             sns.set_topic_attributes(
                 TopicArn=topicArn,
                 AttributeName='Policy',
-                AttributeValue=json.dumps(topicPolicyJson)
+                AttributeValue=json.dumps(topicPolicyJson),
             )
         except botocore.exceptions.ClientError as error:
             print(f'Error encountered: {error}')
@@ -314,15 +273,19 @@ class FalcoSetup():
 
         # Use subprocess to add Falco Charts using Helm
         print(f'Adding Falco Helm Charts')
-        falcoHelmChartAddCmd = 'helm repo add falcosecurity https://falcosecurity.github.io/charts && helm repo update'
-        falcoHelmChartAddSubprocess = subprocess.run(falcoHelmChartAddCmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        falcoHelmChartAddCmd = (
+            'helm repo add falcosecurity https://falcosecurity.github.io/charts && helm repo update'
+        )
+        falcoHelmChartAddSubprocess = subprocess.run(
+            falcoHelmChartAddCmd, shell=True, capture_output=True
+        )
         falcoHelmChartAddMsg = str(falcoHelmChartAddSubprocess.stdout.decode('utf-8'))
         print(falcoHelmChartAddMsg)
 
         # Use subprocess to configure Falco and FalcoSidekick per initiation arguments from main.py
         print(f'Installing Falco and FalcoSidekick')
         installFalcoCmd = falco_install_command
-        installFalcoSubprocess = subprocess.run(installFalcoCmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        installFalcoSubprocess = subprocess.run(installFalcoCmd, shell=True, capture_output=True)
         installFalcoMsg = str(installFalcoSubprocess.stdout.decode('utf-8'))
         print(installFalcoMsg)
 
@@ -349,17 +312,12 @@ class FalcoSetup():
         # If an IAM Policy for SNS was created, attempt to detach it before deletion
         try:
             rolesAttachedToPolicy = iam.list_entities_for_policy(
-                PolicyArn=policyArn,
-                EntityFilter='Role',
-                PolicyUsageFilter='PermissionsPolicy'
+                PolicyArn=policyArn, EntityFilter='Role', PolicyUsageFilter='PermissionsPolicy'
             )['PolicyRoles']
             if rolesAttachedToPolicy:
                 for role in rolesAttachedToPolicy:
                     roleName = str(role['RoleName'])
-                    iam.detach_role_policy(
-                        RoleName=roleName,
-                        PolicyArn=policyArn
-                    )
+                    iam.detach_role_policy(RoleName=roleName, PolicyArn=policyArn)
         except botocore.exceptions.ClientError as error:
             print(error)
         except KeyError as ke:
@@ -367,9 +325,7 @@ class FalcoSetup():
 
         # If an IAM Policy for SNS was created, attempt to delete it
         try:
-            iam.delete_policy(
-                PolicyArn=policyArn
-            )
+            iam.delete_policy(PolicyArn=policyArn)
             print(f'Falco SNS Policy {policyArn} deleted')
         except botocore.exceptions.ClientError as error:
             print(error)
@@ -383,7 +339,7 @@ class FalcoSetup():
 
         # Uninstall Falco from EKS
         falcoRemoveCmd = 'helm uninstall falco'
-        falcoRemoveSubprocess = subprocess.run(falcoRemoveCmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        falcoRemoveSubprocess = subprocess.run(falcoRemoveCmd, shell=True, capture_output=True)
         falcoRemoveMsg = str(falcoRemoveSubprocess.stdout.decode('utf-8'))
         print(falcoRemoveMsg)
 
