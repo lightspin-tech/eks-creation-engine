@@ -541,7 +541,7 @@ if __name__ == "__main__":
     # --falco
     parser.add_argument(
         '--falco',
-        help='For CREATE Mode, this flag specifies if you want to install and configure Falco on your Clusters - defaults to False',
+        help='For CREATE and UPDATE Modes, this flag specifies if you want to install and configure Falco on your Clusters - defaults to False',
         required=False,
         choices=['True', 'False'],
         default='False'
@@ -580,7 +580,7 @@ if __name__ == "__main__":
     # --datadog
     parser.add_argument(
         '--datadog',
-        help='For CREATE Mode, this flag specifies if you want to install and configure Datadog APM on your Clusters - defaults to False',
+        help='For CREATE and UPDATE Modes, this flag specifies if you want to install and configure Datadog APM on your Clusters - defaults to False',
         required=False,
         choices=['True', 'False'],
         default='False'
