@@ -29,6 +29,7 @@ import subprocess
 import re
 from plugins.ECEDatadog import DatadogSetup
 from plugins.ECEFalco import FalcoSetup
+from plugins.ECENonameSecurity import NonameSecuritySetup
 
 cache = list()
 
@@ -1462,7 +1463,7 @@ class UpdateManager():
 
 '''
 Despite it's name, this Class contains methods to conduct emergency deletions (rollback) from Cache as well as normal deletions from main.py commands
-this is purely for Create mode, other Classes may have their own self-contained rollback mechanism
+this is purely for Create mode, other Classes may have their own self-contained rollback mechanism.
 '''
 class RollbackManager():
 
