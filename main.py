@@ -30,6 +30,7 @@ import termcolor
 from clint.textui import colored, puts
 from EksCreationEngine import ClusterManager, UpdateManager, RollbackManager
 from plugins.ECEDatadog import DatadogSetup
+from plugins.ECENonameSecurity import NonameSecuritySetup
 from plugins.ECEFalco import FalcoSetup
 from plugins.ECESecurity import SecurityAssessment
 
@@ -108,6 +109,17 @@ def create_preflight_check():
         if bucketName == None:
             print(f'S3 Bucket name was not provided. Please provide a valid S3 Bucket and try again')
             sys.exit(2)
+
+    # Verify Falco Destinations are provided, and verify DataDog API key if Falco Destination is Datadog
+    if falcoBool == 'True':
+        if falcoDestType == 'Slack' or falcoDestType == 'Teams':
+            if falcoDest == None:
+                print(f'No destination was provided for "--falco_sidekick_destination_type", please try again.')
+                sys.exit(2)
+        elif falcoDestType == 'Datadog':
+            if datadogApiKey == None:
+               print(f'Datadog destination for Falco was specified but a Datadog API was not provided. Please provide a valid API key and try again.')
+               sys.exit(2)
 
     # Ensure a Datadog API key is provided if Datadog installation is true
     if datadogBool == 'True':
@@ -198,11 +210,58 @@ def delete_preflight_check():
 def update_preflight_check():
     print_logo()
 
-    # Call the `update_kubernetes_version` function and attempt to version bump K8s of Clusters & Nodes
-    UpdateManager.update_kubernetes_version(
+    eks = boto3.client('eks')
+
+    # Check if an EKS Cluster exists for provided name
+    try:
+        eks.describe_cluster(
+            name=clusterName
+        )
+    except botocore.exceptions.ClientError as error:
+        # If we have an "ResourceNotFoundException" error it means the cluster doesnt exist - which is what we want
+        if error.response['Error']['Code'] == 'ResourceNotFoundException':
+            print(f'An EKS Cluster with the name {clusterName} does not exist. Please specify another name and try again')
+            sys.exit(2)
+        else:
+            raise error
+
+    # Verify Falco Destinations are provided, and verify DataDog API key if Falco Destination is Datadog
+    if falcoBool == 'True':
+        if falcoDestType == 'Slack' or falcoDestType == 'Teams':
+            if falcoDest == None:
+                print(f'No destination was provided for "--falco_sidekick_destination_type", please try again.')
+                sys.exit(2)
+        elif falcoDestType == 'Datadog':
+            if datadogApiKey == None:
+               print(f'Datadog destination for Falco was specified but a Datadog API was not provided. Please provide a valid API key and try again.')
+               sys.exit(2)
+
+    # Ensure a S3 Bucket was provided if MDE installation is true
+    if installMdeOnNodes == 'True':
+        if bucketName == None:
+            print(f'S3 Bucket name was not provided. Please provide a valid S3 Bucket and try again')
+            sys.exit(2)
+
+    # Ensure a Datadog API key is provided if Datadog installation is true
+    if datadogBool == 'True':
+        if datadogApiKey == None:
+            print(f'Datadog setup was specified but a Datadog API was not provided. Please provide a valid API key and try again.')
+            sys.exit(2)
+
+    # Call the `update_manager` function and provide in the above-checked variables. 
+    # The manager will handle calling other Plugins for installation of additional payloads
+    UpdateManager.update_manager(
         cluster_name=clusterName,
         kubernetes_version=k8sVersion,
-        nodegroup_name=nodegroupName
+        nodegroup_name=nodegroupName,
+        mde_on_nodes=installMdeOnNodes,
+        bucket_name=bucketName,
+        falco_bool=falcoBool,
+        falco_sidekick_destination_type=falcoDestType,
+        falco_sidekick_destination=falcoDest,
+        datadog_api_key=datadogApiKey,
+        datadog_bool=datadogBool,
+        update_k8s_version=versionBumpK8s
     )
 
     stay_dangerous()
@@ -226,7 +285,7 @@ def assessment_preflight_check():
             print(f'An EKS Cluster with the name {clusterName} does not exist. Please specify another name and try again')
             sys.exit(2)
         else:
-            pass
+            raise error
 
     print(f'Downloading latest Kube-bench EKS config YAML')
 
@@ -247,12 +306,46 @@ def assessment_preflight_check():
 
     stay_dangerous()
 
-def setup_falco_preflight_check():
+def remove_falco_preflight_check():
     '''
     This function conducts a "preflight check" to ensure that required arguments are provided for the specified "Mode" before
     attempting to execute them.
     '''
 
+    print_logo()
+
+    eks = boto3.client('eks')
+    # Check if an EKS Cluster exists for provided name
+    try:
+        eks.describe_cluster(
+            name=clusterName
+        )
+    except botocore.exceptions.ClientError as error:
+        # If we have an "ResourceNotFoundException" error it means the cluster doesnt exist - which is what we want
+        if error.response['Error']['Code'] == 'ResourceNotFoundException':
+            print(f'An EKS Cluster with the name {clusterName} does not exist. Please specify another name and try again')
+            sys.exit(2)
+        else:
+            raise error
+
+    if mode == 'RemoveFalco':
+        FalcoSetup.falco_initialization(
+            cluster_name=clusterName,
+            falco_mode='Delete',
+            falco_sidekick_destination_type=falcoDestType,
+            falco_sidekick_destination=falcoDest,
+            datadog_api_key=datadogApiKey
+        )
+        stay_dangerous()
+    else:
+        print(f'Somehow, an incompatible mode detected for Falco, please try again.')
+        sys.exit(2)
+
+def remove_datadog_preflight_check():
+    '''
+    This function conducts a "preflight check" to ensure that required arguments are provided for the specified "Mode" before
+    attempting to execute them.
+    '''
     print_logo()
 
     eks = boto3.client('eks')
@@ -269,69 +362,8 @@ def setup_falco_preflight_check():
         else:
             pass
     
-    if mode == 'SetupFalco':
-        if falcoDestType == 'Slack' or falcoDestType == 'Teams':
-            if falcoDest == None:
-                print(f'No destination was provided for "--falco_sidekick_destination_type", please try again.')
-                sys.exit(2)
-        elif falcoDestType == 'Datadog':
-            if datadogApiKey == None:
-               print(f'Datadog destination for Falco was specified but a Datadog API was not provided. Please provide a valid API key and try again.')
-               sys.exit(2)
-
-        FalcoSetup.falco_initialization(
-            cluster_name=clusterName,
-            falco_mode='Create',
-            falco_sidekick_destination_type=falcoDestType,
-            falco_sidekick_destination=falcoDest
-        )
-        stay_dangerous()
-    elif mode == 'RemoveFalco':
-        FalcoSetup.falco_initialization(
-            cluster_name=clusterName,
-            falco_mode='Delete',
-            falco_sidekick_destination_type=falcoDestType,
-            falco_sidekick_destination=falcoDest,
-            datadog_api_key=datadogApiKey
-        )
-        stay_dangerous()
-    else:
-        print(f'Somehow, an incompatible mode detected for Falco, please try again.')
-        sys.exit(2)
-
-def setup_datadog_preflight_check():
-    '''
-    This function conducts a "preflight check" to ensure that required arguments are provided for the specified "Mode" before
-    attempting to execute them.
-    '''
-    print_logo()
-
-    eks = boto3.client('eks')
-    # Check if an EKS Cluster exists for provided name
-    try:
-        eks.describe_cluster(
-            name=clusterName
-        )
-    except botocore.exceptions.ClientError as error:
-        # If we have an "ResourceNotFoundException" error it means the cluster doesnt exist - which is what we want
-        if error.response['Error']['Code'] == 'ResourceNotFoundException':
-            print(f'An EKS Cluster with the name {clusterName} does not exist. Please specify another name and try again')
-            sys.exit(2)
-        else:
-            pass
-
-    if mode == 'SetupDatadog':
-        if datadogApiKey == None:
-            print(f'Datadog setup was specified but a Datadog API was not provided. Please provide a valid API key and try again.')
-            sys.exit(2)
-        # Datadoggy time!
-        DatadogSetup.initialization(
-            cluster_name=clusterName,
-            datadog_mode='Setup',
-            datadog_api_key=datadogApiKey
-        )
-    elif mode == 'RemoveDatadog':
-        # Bye Datadoggy time!
+    if mode == 'RemoveDatadog':
+        # Bye Datadog time!
         DatadogSetup.initialization(
             cluster_name=clusterName,
             datadog_mode='Remove',
@@ -372,6 +404,7 @@ if __name__ == "__main__":
     --datadog | datadog_bool
     --datadog_api_key | datadog_api_key
     --addtl_auth_principals | addtl_auth_principals
+    --update_k8s_version | update_k8s_version
     '''
     parser = argparse.ArgumentParser()
 
@@ -385,9 +418,16 @@ if __name__ == "__main__":
     # --mode
     parser.add_argument(
         '--mode',
-        help='Create, Destory or Update an existing Cluster. Updates limited to K8s Version bump. Destroy attempts to delete everything that this utility creates. Assessment will attempt to run various K8s security tools. SetupFalco will attempt to install Falco on existing Clusters. RemoveFalco will attempt to rollback SetupFalco deployments. SetupDatadog will attempt to install DataDog on existing Cluster. RemoveDatadog will attempt to rollback SetupDatadog deployments - defaults to Create',
+        help='Create, Destory or Update an existing Cluster. Updates take in version bumps, installing Falco or Datadog. Destroy attempts to delete everything that this utility creates. Assessment will attempt to run various K8s security tools. RemoveFalco will attempt to rollback Falco deployments. RemoveDatadog will attempt to rollback Datadog deployments - defaults to Create',
         required=False,
-        choices=['Create', 'Destroy', 'Update', 'Assessment', 'SetupFalco', 'RemoveFalco', 'SetupDatadog', 'RemoveDatadog'],
+        choices=[
+            'Create',
+            'Destroy',
+            'Update',
+            'Assessment',
+            'RemoveFalco',
+            'RemoveDatadog'
+        ],
         default='Create'
     )
     # --k8s_version
@@ -560,6 +600,14 @@ if __name__ == "__main__":
         help='Additional IAM Role ARNs to authorized as system:masters',
         required=False
     )
+    # --update_k8s_version
+    parser.add_argument(
+        '--update_k8s_version',
+        help='For UPDATE Mode, this flag specifies if you want to attempt to version bump K8s for your Nodes and Cluster - defaults to False',
+        required=False,
+        choices=['True', 'False'],
+        default='False'
+    )
 
     args = parser.parse_args()
     # Set Boto3 Profile if set
@@ -590,6 +638,7 @@ if __name__ == "__main__":
     datadogBool = args.datadog
     datadogApiKey = args.datadog_api_key
     additionalAuthZPrincipals = args.addtl_auth_principals
+    versionBumpK8s = args.update_k8s_version
 
     # This calls the creation function to create all needed IAM policies, roles and EC2/EKS infrastructure
     # will check if some infrastructure exists first to avoid needless exit later
@@ -601,14 +650,10 @@ if __name__ == "__main__":
         update_preflight_check()
     elif mode == 'Assessment':
         assessment_preflight_check()
-    elif mode == 'SetupFalco':
-        setup_falco_preflight_check()
     elif mode == 'RemoveFalco':
-        setup_falco_preflight_check()
-    elif mode == 'SetupDatadog':
-        setup_datadog_preflight_check()
+        remove_falco_preflight_check()
     elif mode == 'RemoveDatadog':
-        setup_datadog_preflight_check()
+        remove_datadog_preflight_check()
     else:
         print(f'Somehow you provided an unexpected arguement, exiting!')
         sys.exit(2)

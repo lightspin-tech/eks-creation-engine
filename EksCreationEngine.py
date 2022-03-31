@@ -1293,9 +1293,7 @@ class ClusterManager():
                 newAuthZScriptProc = subprocess.run(newAuthZScript, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 print(newAuthZScriptProc.stdout.decode('utf-8'))
 
-        '''
-        Send a call into plugins.ECEFalco
-        '''
+        # Send a call into plugins.ECEFalco
         if falco_bool == 'True':
             FalcoSetup.falco_initialization(
                 cluster_name=clusterName, 
@@ -1304,19 +1302,53 @@ class ClusterManager():
                 falco_sidekick_destination=falco_sidekick_destination,
                 datadog_api_key=datadog_api_key
             )
-        '''
-        Send a call into plugins.ECEDatadog
-        '''
+        # Send a call into plugins.ECEDatadog
         if datadog_bool == 'True':
             DatadogSetup.initialization(
                 cluster_name=clusterName, 
                 datadog_mode='Create',
                 datadog_api_key=datadog_api_key
             )
+        # Send a call into plugins.ECENonameSecurity
+        # TODO!
+        
 '''
-This Class handles all update tasks to the Clusters, such as version bumps to latest Kubenertes Versions
+This Class handles all update tasks to the Clusters directly or by interacting with loaded Plugins. For instance, this Class will directly update Kubernetes Versions or Add Nodegroups.
+This Class will call external Plugins in "creation" mode to install MDE, install DataDog, install Falco, and install Noname Security K8s Agents.
 '''
 class UpdateManager():
+
+    def update_manager(cluster_name, nodegroup_name, kubernetes_version, mde_on_nodes, bucket_name, falco_bool, falco_sidekick_destination_type, falco_sidekick_destination, datadog_api_key, datadog_bool, update_k8s_version):
+        '''
+        This function controls all of the Update functions such as optional installation of additional sensors, updating the K8s version, and
+        adding Nodegroups or Nodecounts into the Cluster.
+        '''
+
+        # Check if we need to perform a Version Bump
+        if update_k8s_version == 'True':
+            UpdateManager.update_kubernetes_version(
+                cluster_name, 
+                nodegroup_name,
+                kubernetes_version
+            )
+        # Send a call into plugins.ECEFalco
+        if falco_bool == 'True':
+            FalcoSetup.falco_initialization(
+                cluster_name=cluster_name, 
+                falco_mode='Create',
+                falco_sidekick_destination_type=falco_sidekick_destination_type, 
+                falco_sidekick_destination=falco_sidekick_destination,
+                datadog_api_key=datadog_api_key
+            )
+        # Send a call into plugins.ECEDatadog
+        if datadog_bool == 'True':
+            DatadogSetup.initialization(
+                cluster_name=cluster_name, 
+                datadog_mode='Create',
+                datadog_api_key=datadog_api_key
+            )
+        # Send a call into plugins.ECENonameSecurity
+        # TODO!
     
     def update_kubernetes_version(cluster_name, nodegroup_name, kubernetes_version):
         '''
@@ -1326,42 +1358,21 @@ class UpdateManager():
 
         eks = boto3.client('eks')
 
-        # Lookup EKS Cluster to see if specified K8s version from main.py matches, if so exit
-        try:
-            existingClusterVersion = eks.describe_cluster(name=cluster_name)['cluster']['version']
-            if existingClusterVersion == kubernetes_version:
-                print(f'EKS Cluster {cluster_name} is already at Kubernetes version {kubernetes_version}! Aborting')
-                sys.exit(2)
-            else:
-                print(f'EKS Cluster {cluster_name} is viable to update from Kubernetes version {existingClusterVersion} to {kubernetes_version}')
-        except botocore.exceptions.ClientError as error:
-            # If we have an 'EntityAlreadyExists' error it means a Role of the same name exists, we can try to use it instead
-            if error.response['Error']['Code'] == 'ResourceNotFoundException':
-                print(f'EKS Cluster {cluster_name} does not exist! Aborting')
-                sys.exit(2)
-            else:
-                raise error
-
-        # Lookup EKS Nodegroup to see if specified K8s version from main.py matches, if so exit
-        try:
-            existingNodegroupVersion = eks.describe_cluster(name=cluster_name,nodegroupName=nodegroup_name)['nodegroup']['version']
-
-            if existingNodegroupVersion == kubernetes_version:
-                print(f'EKS Nodegroup {nodegroup_name} in Cluster {cluster_name} is already at Kubernetes version {kubernetes_version}! Aborting')
-                sys.exit(2)
-            else:
-                print(f'EKS Nodegroup {nodegroup_name} in Cluster {cluster_name} is viable to update from Kubernetes version {existingNodegroupVersion} to {kubernetes_version}')
-        except botocore.exceptions.ClientError as error:
-            # If we have an 'EntityAlreadyExists' error it means a Role of the same name exists, we can try to use it instead
-            if error.response['Error']['Code'] == 'ResourceNotFoundException':
-                print(f'EKS Nodegroup {nodegroup_name} in Cluster {cluster_name} does not exist! Aborting')
-                sys.exit(2)
-            else:
-                raise error
-
-        UpdateManager.update_nodegroup_kubernetes_version(cluster_name, nodegroup_name, kubernetes_version)
-
-        UpdateManager.update_cluster_kubernetes_version(cluster_name, kubernetes_version)
+        # Lookup EKS Nodegroup to see if the specified K8s version from main.py matches, if they do not not attempt an upgrade
+        existingNodegroupVersion = eks.describe_cluster(name=cluster_name,nodegroupName=nodegroup_name)['nodegroup']['version']
+        if existingNodegroupVersion == kubernetes_version:
+            print(f'EKS Nodegroup {nodegroup_name} in Cluster {cluster_name} is already at Kubernetes version {kubernetes_version}. Not attempting an Update.')
+        else:
+            print(f'EKS Nodegroup {nodegroup_name} in Cluster {cluster_name} is viable to update from Kubernetes version {existingNodegroupVersion} to {kubernetes_version}')
+            UpdateManager.update_nodegroup_kubernetes_version(cluster_name, nodegroup_name, kubernetes_version)
+        
+        # Lookup EKS Cluster to see if the specified K8s version from main.py matches, if they do not not attempt an upgrade
+        existingClusterVersion = eks.describe_cluster(name=cluster_name)['cluster']['version']
+        if existingClusterVersion == kubernetes_version:
+            print(f'EKS Cluster {cluster_name} is already at Kubernetes version {kubernetes_version}. Not attempting an Update.')
+        else:
+            print(f'EKS Cluster {cluster_name} is viable to update from Kubernetes version {existingClusterVersion} to {kubernetes_version}')
+            UpdateManager.update_cluster_kubernetes_version(cluster_name, kubernetes_version)
 
     def update_nodegroup_kubernetes_version(cluster_name, nodegroup_name, kubernetes_version):
         '''
@@ -1401,10 +1412,10 @@ class UpdateManager():
                 print(f'Error message: {errorMessage}')
                 sys.exit(2)
             else:
-                print(f'Awaiting update status change for 15 more seconds...')
+                print(f'Awaiting update status change for 30 more seconds...')
                 del d
                 del updateStatus
-                time.sleep(15)
+                time.sleep(30)
                 continue
 
     def update_cluster_kubernetes_version(cluster_name, kubernetes_version):
