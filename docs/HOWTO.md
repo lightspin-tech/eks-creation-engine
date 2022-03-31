@@ -60,7 +60,7 @@ helm version
 ```
 python3 main.py -h
 usage: main.py [-h] [--profile PROFILE]
-               [--mode {Create,Destroy,Update,Assessment,SetupFalco,RemoveFalco,SetupDatadog,RemoveDatadog}]
+               [--mode {Create,Destroy,Update,Assessment,RemoveFalco,RemoveDatadog}]
                [--k8s_version K8S_VERSION] [--s3_bucket_name S3_BUCKET_NAME]
                [--ebs_volume_size EBS_VOLUME_SIZE] [--ami_id AMI_ID]
                [--instance_type INSTANCE_TYPE] [--cluster_name CLUSTER_NAME]
@@ -77,21 +77,20 @@ usage: main.py [-h] [--profile PROFILE]
                [--ami_os {alas,ubuntu}] [--ami_architecture {amd64,arm64}]
                [--datadog {True,False}] [--datadog_api_key DATADOG_API_KEY]
                [--addtl_auth_principals ADDTL_AUTH_PRINCIPALS [ADDTL_AUTH_PRINCIPALS ...]]
+               [--update_k8s_version {True,False}]
 
 optional arguments:
   -h, --help            show this help message and exit
   --profile PROFILE     Specify Profile name if multiple profiles are used
-  --mode {Create,Destroy,Update,Assessment,SetupFalco,RemoveFalco,SetupDatadog,RemoveDatadog}
+  --mode {Create,Destroy,Update,Assessment,RemoveFalco,RemoveDatadog}
                         Create, Destory or Update an existing Cluster. Updates
-                        limited to K8s Version bump. Destroy attempts to
-                        delete everything that this utility creates.
-                        Assessment will attempt to run various K8s security
-                        tools. SetupFalco will attempt to install Falco on
-                        existing Clusters. RemoveFalco will attempt to
-                        rollback SetupFalco deployments. SetupDatadog will
-                        attempt to install DataDog on existing Cluster.
-                        RemoveDatadog will attempt to rollback SetupDatadog
-                        deployments - defaults to Create
+                        take in version bumps, installing Falco or Datadog.
+                        Destroy attempts to delete everything that this
+                        utility creates. Assessment will attempt to run
+                        various K8s security tools. RemoveFalco will attempt
+                        to rollback Falco deployments. RemoveDatadog will
+                        attempt to rollback Datadog deployments - defaults to
+                        Create
   --k8s_version K8S_VERSION
                         Version of K8s to use for EKS - defaults to 1.21 as of
                         13 JAN 2022 - used for Create and Update
@@ -139,9 +138,9 @@ optional arguments:
                         Additional application ports which need to be allowed
                         in EKS Security Groups - 443, 53, 8765, 2801, and
                         10250 already included
-  --falco {True,False}  For CREATE Mode, this flag specifies if you want to
-                        install and configure Falco on your Clusters -
-                        defaults to False
+  --falco {True,False}  For CREATE and UPDATE Modes, this flag specifies if
+                        you want to install and configure Falco on your
+                        Clusters - defaults to False
   --falco_sidekick_destination_type {SNS,Slack,Teams,Datadog}
                         The output location for Falco Sidekick to send Falco
                         alerts to. Defaults to SNS which also creates a new
@@ -158,16 +157,20 @@ optional arguments:
                         If using "SSM" for --ami use this argument to specify
                         what architecture you want to use - defaults to amd64
   --datadog {True,False}
-                        For CREATE Mode, this flag specifies if you want to
-                        install and configure Datadog APM on your Clusters -
-                        defaults to False
+                        For CREATE and UPDATE Modes, this flag specifies if
+                        you want to install and configure Datadog APM on your
+                        Clusters - defaults to False
   --datadog_api_key DATADOG_API_KEY
                         Datadog API Key. This is used for setting up Datadog
                         with Create and SetupDatadog Modes as well as Datadog
                         integration for FalcoSidekick
   --addtl_auth_principals ADDTL_AUTH_PRINCIPALS [ADDTL_AUTH_PRINCIPALS ...]
-                        Additional IAM Principal ARNs to authorized as
+                        Additional IAM Role ARNs to authorized as
                         system:masters
+  --update_k8s_version {True,False}
+                        For UPDATE Mode, this flag specifies if you want to
+                        attempt to version bump K8s for your Nodes and Cluster
+                        - defaults to False
 ```
 
 ### Creating a Cluster with the minimum required arguements
@@ -286,6 +289,7 @@ python3 main.py \
 ```bash
 python3 main.py \
     --mode Update \
+    --update_k8s_version True \
     --cluster_name $CLUSTER_NAME \
     --nodegroup_name $NODEGROUP_NAME \
     --kubernetes_version $K8S_VERSION
@@ -308,7 +312,8 @@ python3 main.py \
 ```bash
 SLACK_WEBHOOK="https://hooks.slack.com/services/XXXX"
 python3 main.py \
-    --mode SetupFalco \
+    --mode Update \
+    --falco True \
     --falco_sidekick_destination_type Slack \
     --falco_sidekick_destination $SLACK_WEBHOOK \
     --cluster_name $CLUSTER_NAME
@@ -336,7 +341,8 @@ echo $DATADOG_API_KEY
 
 ```bash
 python3 main.py \
-    --mode SetupDatadog \
+    --mode Update \
+    --datadog True \
     --datadog_api_key $DATADOG_API_KEY \
     --cluster_name $CLUSTER_NAME
 ```
