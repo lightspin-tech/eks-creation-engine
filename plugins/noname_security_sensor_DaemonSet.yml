@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: noname-security-sensor
+  namespace: default
+  labels:
+    k8s-app: noname-security-sensor
+spec:
+  selector:
+    matchLabels:
+      name: noname-security-sensor
+  template:
+    metadata:
+      labels:
+        name: noname-security-sensor
+    spec:
+      hostNetwork: true
+      containers:
+        - name: noname-security-sensor
+          image: 'nonamesec.jfrog.io/noname-docker-sensor-release-local/3.1.0/noname-sensor:3.1.0.74'
+          env:
+            - name: ENGINE_URL
+              value: ${NonameEngineURL}
+            - name: SNIFF_SOURCE_TYPE
+              value: '18'
+            - name: SNIFF_SOURCE_INDEX
+              value: '3'
+            - name: SNIFF_INTERFACE
+              value: "any"
+            - name: SHOULD_REMOVE_DUPLICATED
+              value: "true"
+          imagePullPolicy: Always
+          securityContext:
+            runAsUser: 0
+            capabilities:
+              add:
+                - NET_ADMIN
+      imagePullSecrets:
+        - name: secret-credentials
