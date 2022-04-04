@@ -55,7 +55,7 @@ class NonameSecuritySetup():
         # Use subprocess to configure Noname per initiation arguments from main.py
 
         print(f'Installing Noname Sensor')
-        installnnSensor = f'kubectl apply -f noname_security_sensor.yml'
+        installnnSensor = f'kubectl apply -f noname_security_sensor_DaemonSet.yml'
         installnnSubprocess2 = subprocess.run(installnnSensor, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         installnnMsg = str(installnnSubprocess2.stdout.decode('utf-8'))
         print(installnnMsg)
