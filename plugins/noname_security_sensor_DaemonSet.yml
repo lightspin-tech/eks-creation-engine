@@ -24,7 +24,7 @@ spec:
             - name: SNIFF_SOURCE_TYPE
               value: '18'
             - name: SNIFF_SOURCE_INDEX
-              value: '3'
+              value: ${NonameSourceIndex}
             - name: SNIFF_INTERFACE
               value: "any"
             - name: SHOULD_REMOVE_DUPLICATED
