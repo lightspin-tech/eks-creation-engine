@@ -151,7 +151,10 @@ def create_preflight_check():
         'AmiArhcitecture': amiArchitecture,
         'DatadogApiKey': datadogApiKey,
         'InstallDatadog?': datadogBool,
-        'AdditionalAuthorizedPrincipals': additionalAuthZPrincipals
+        'AdditionalAuthorizedPrincipals': additionalAuthZPrincipals,
+        'InstallNoname?': nonameBool,
+        'NonameEngineURL': nonameDest,
+        'NonameSourceIndex': nonameSource,
     }
 
     print(f'The following attributes are set for your EKS Cluster')
