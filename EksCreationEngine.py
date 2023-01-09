@@ -68,6 +68,7 @@ class ClusterManager():
             try:
                 amiId = ssm.get_parameter(Name=publicParameter)['Parameter']['Value']
             except Exception as e:
+                print('Some AMIs are not stored as SSM Public Parameters despite being available from the maintainer, check the maintainer EKS documentation.')
                 raise e
         else:
             amiId = ami_id
@@ -749,7 +750,7 @@ class ClusterManager():
 
         return kmsKeyArn
     
-    def create_cluster(cluster_name, kubernetes_version, cluster_role_name, subnet_ids, vpc_id, additional_ports):
+    def create_cluster(cluster_name, kubernetes_version, cluster_role_name, subnet_ids, vpc_id, additional_ports, logging_types):
         '''
         This function uses the EKS Boto3 Client to create a cluster, taking inputs from main.py to determing naming & Encryption
         '''
@@ -784,8 +785,8 @@ class ClusterManager():
                 logging={
                     'clusterLogging': [
                         {   
-                            # all Logging types are enabled here
-                            'types': ['api','audit','authenticator','controllerManager','scheduler'],
+                            # provide via --logging_types arg
+                            'types': logging_types,
                             'enabled': True
                         }
                     ]
@@ -1051,7 +1052,7 @@ class ClusterManager():
 
         return launchTemplateId
     
-    def builder(kubernetes_version, bucket_name, ebs_volume_size, ami_id, instance_type, cluster_name, cluster_role_name, nodegroup_name, nodegroup_role_name, launch_template_name, vpc_id, subnet_ids, node_count, mde_on_nodes, additional_ports, falco_bool, falco_sidekick_destination_type, falco_sidekick_destination, ami_os, ami_architecture, datadog_api_key, datadog_bool, addtl_auth_principals):
+    def builder(kubernetes_version, bucket_name, ebs_volume_size, ami_id, instance_type, cluster_name, cluster_role_name, nodegroup_name, nodegroup_role_name, launch_template_name, vpc_id, subnet_ids, node_count, mde_on_nodes, additional_ports, falco_bool, falco_sidekick_destination_type, falco_sidekick_destination, ami_os, ami_architecture, datadog_api_key, datadog_bool, addtl_auth_principals, logging_types):
         '''
         This function is the 'brain' that controls creation and calls the required functions to build infrastructure and services (EKS, EC2, IAM).
         This function also stores all required arguments into cache to facilitate rollbacks upon errors
@@ -1081,7 +1082,7 @@ class ClusterManager():
 
         # Create an EKS Cluster by calling `create_cluster` - this will take the longest, and if it fails, then other infrastructure won't be created
         # the positional selectors are for when you return multiple values, they are bundled in a tuple, and have to be accessed in the order they're provided
-        callClusterManager = ClusterManager.create_cluster(cluster_name, kubernetes_version, cluster_role_name, subnet_ids, vpc_id, additional_ports)
+        callClusterManager = ClusterManager.create_cluster(cluster_name, kubernetes_version, cluster_role_name, subnet_ids, vpc_id, additional_ports, logging_types)
         clusterName = callClusterManager[0]
         securityGroupId = callClusterManager[1]
         kms_key_arn = callClusterManager[2]

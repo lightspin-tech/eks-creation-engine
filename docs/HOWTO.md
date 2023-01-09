@@ -77,6 +77,7 @@ usage: main.py [-h] [--profile PROFILE]
                [--ami_os {alas,ubuntu}] [--ami_architecture {amd64,arm64}]
                [--datadog {True,False}] [--datadog_api_key DATADOG_API_KEY]
                [--addtl_auth_principals ADDTL_AUTH_PRINCIPALS [ADDTL_AUTH_PRINCIPALS ...]]
+               [--logging_types LOGGING_TYPES [LOGGING_TYPES ...]]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -168,6 +169,8 @@ optional arguments:
   --addtl_auth_principals ADDTL_AUTH_PRINCIPALS [ADDTL_AUTH_PRINCIPALS ...]
                         Additional IAM Principal ARNs to authorized as
                         system:masters
+  --logging_types LOGGING_TYPES [LOGGING_TYPES ...]
+                        Types of EKS logging to enable -- limited to "api","audit","authenticator","controllerManager","scheduler" - defaults to API logging
 ```
 
 ### Creating a Cluster with the minimum required arguements
