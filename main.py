@@ -115,6 +115,13 @@ def create_preflight_check():
             print(f'Datadog setup was specified but a Datadog API was not provided. Please provide a valid API key and try again.')
             sys.exit(2)
 
+    # Ensure EKS Logging Types match the valid choices -- nargs and choices for argparse of a list that can have multiple choices is confusing
+    validLogTypes = ['api','audit','authenticator','controllerManager','scheduler']
+    for choice in loggingTypes:
+        if choice not in validLogTypes:
+            print(f'Logging type {choice} is not one of {validLogTypes} as valid choice!')
+            sys.exit(2)
+
     # Print out creation specification - in the future this will be a "state file" for the cluster
     specDict = {
         'K8sVersion': k8sVersion,
@@ -139,7 +146,8 @@ def create_preflight_check():
         'AmiArhcitecture': amiArchitecture,
         'DatadogApiKey': datadogApiKey,
         'InstallDatadog?': datadogBool,
-        'AdditionalAuthorizedPrincipals': additionalAuthZPrincipals
+        'AdditionalAuthorizedPrincipals': additionalAuthZPrincipals,
+        'LoggingTypes': loggingTypes
     }
 
     # Create title for State file
@@ -189,7 +197,8 @@ def create_preflight_check():
         ami_architecture=amiArchitecture,
         datadog_api_key=datadogApiKey,
         datadog_bool=datadogBool,
-        addtl_auth_principals=additionalAuthZPrincipals
+        addtl_auth_principals=additionalAuthZPrincipals,
+        logging_types=loggingTypes
     )
 
     stay_dangerous()
@@ -243,8 +252,7 @@ def assessment_preflight_check():
 
     print(f'Downloading latest Kube-bench EKS config YAML')
 
-    url = 'https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-eks.yaml'
-    wgetCommand = f'wget {url}'
+    wgetCommand = 'wget https://raw.githubusercontent.com/aquasecurity/kube-bench/main/job-eks.yaml'
     subProc = subprocess.run(wgetCommand, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(subProc.stderr.decode('utf-8'))
 
@@ -384,13 +392,14 @@ if __name__ == "__main__":
     --datadog | datadog_bool
     --datadog_api_key | datadog_api_key
     --addtl_auth_principals | addtl_auth_principals
+    --logging_types | logging_types
     '''
     parser = argparse.ArgumentParser()
 
     # --profile
     parser.add_argument(
         '--profile',
-        help='Specify Profile name if multiple profiles are used',
+        help='Specify Boto3 Profile name if multiple profiles are used',
         required=False,
         default=[]
     )
@@ -565,13 +574,22 @@ if __name__ == "__main__":
         required=False,
         default=None
     )
-    # addtl_auth_principals
+    # --addtl_auth_principals
     # for help https://www.kite.com/python/answers/how-to-pass-a-list-as-an-argument-using-argparse-in-python
     parser.add_argument(
         '--addtl_auth_principals',
         nargs='+',
         help='Additional IAM Role ARNs to authorize as system:masters',
         required=False
+    )
+    # --logging_types
+    # for help https://www.kite.com/python/answers/how-to-pass-a-list-as-an-argument-using-argparse-in-python
+    parser.add_argument(
+        '--logging_types',
+        nargs='+',
+        help='Types of EKS logging to enable -- limited to "api","audit","authenticator","controllerManager","scheduler" - defaults to API logging',
+        required=False
+        default=['api']
     )
 
     args = parser.parse_args()
@@ -603,6 +621,7 @@ if __name__ == "__main__":
     datadogBool = args.datadog
     datadogApiKey = args.datadog_api_key
     additionalAuthZPrincipals = args.addtl_auth_principals
+    loggingTypes = args.logging_types
 
     # This calls the creation function to create all needed IAM policies, roles and EC2/EKS infrastructure
     # will check if some infrastructure exists first to avoid needless exit later
