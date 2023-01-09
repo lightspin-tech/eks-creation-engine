@@ -588,7 +588,7 @@ if __name__ == "__main__":
         '--logging_types',
         nargs='+',
         help='Types of EKS logging to enable -- limited to "api","audit","authenticator","controllerManager","scheduler" - defaults to API logging',
-        required=False
+        required=False,
         default=['api']
     )
 
