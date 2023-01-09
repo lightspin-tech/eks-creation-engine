@@ -405,9 +405,10 @@ if __name__ == "__main__":
     # --k8s_version
     parser.add_argument(
         '--k8s_version',
-        help='Version of K8s to use for EKS - defaults to 1.21 as of 13 JAN 2022 - used for Create and Update',
+        help='Version of K8s to use for EKS - defaults to 1.24 as of 9 JAN 2023, starting with Kubernetes 1.24, new beta APIs arent enabled in clusters by default. - used for Create and Update',
         required=False,
-        default='1.21'
+        choices=['1.21', '1.22', '1.23', '1.24'],
+        default='1.24'
     )
     # --s3_bucket_name
     parser.add_argument(
@@ -569,7 +570,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--addtl_auth_principals',
         nargs='+',
-        help='Additional IAM Role ARNs to authorized as system:masters',
+        help='Additional IAM Role ARNs to authorize as system:masters',
         required=False
     )
 
