@@ -142,15 +142,28 @@ def create_preflight_check():
         'AdditionalAuthorizedPrincipals': additionalAuthZPrincipals
     }
 
-    print(f'The following attributes are set for your EKS Cluster')
+    # Create title for State file
+    statefileName = f'./{clusterName}_ECE_Statefile.json'
+
+    print(f'The following attributes are set for your EKS Cluster. Saving configuration to file as {statefileName}.')
     print(
         json.dumps(
             specDict,
-            indent=4
+            indent=2
         )
     )
-    # TODO: Save state?
+
+    # TODO: Actually do something with this state file...?
+    with open(statefileName, 'w') as jsonfile:
+        json.dump(
+            specDict,
+            jsonfile,
+            indent=2,
+            default=str
+        )
+
     del specDict
+    del jsonfile
 
     # Call the `builder` function
     ClusterManager.builder(
@@ -235,9 +248,8 @@ def assessment_preflight_check():
     subProc = subprocess.run(wgetCommand, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(subProc.stderr.decode('utf-8'))
 
-    print(f'Installing Trivy from source script for v0.24')
-    # TODO: Continual updates of Trivy version https://aquasecurity.github.io/trivy
-    trivyCmd = 'curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.24.0'
+    print(f'Installing latest version of Trivy from source script')
+    trivyCmd = 'curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin latest'
     trivyProc = subprocess.run(trivyCmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(trivyProc.stdout.decode('utf-8'))
 
