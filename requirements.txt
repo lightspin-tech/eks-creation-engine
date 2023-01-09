@@ -4,3 +4,4 @@ art
 termcolor
 clint
 urllib3
+rsa>=4.7 # not directly required, pinned by Snyk to avoid a vulnerability
